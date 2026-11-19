@@ -33,10 +33,11 @@ type Mismatch struct {
 type Result struct {
 	Ledgers    int
 	Mismatches []Mismatch
-	Unknown    []string // ledger names used in vouchers but missing from the ledger list
+	Unknown    []string          // ledger names used in vouchers but missing from the ledger list
+	ZeroNet    []string          // like Unknown, but their lines net to zero: noted, not blocking
 	Where      map[string]string // for each unknown ledger: how many vouchers and the first one
-	BooksTotal int64    // must be 0
-	Stock      []Mismatch // Stock-in-Hand ledgers: Tally shows the inventory valuation, not checked
+	BooksTotal int64             // must be 0
+	Stock      []Mismatch        // Stock-in-Hand ledgers: Tally shows the inventory valuation, not checked
 }
 
 // OK reports whether answers may be given.
@@ -70,6 +71,9 @@ func (r Result) String() string {
 		if len(r.Stock) > 0 {
 			s += fmt.Sprintf(" (%d Stock-in-Hand ledgers show Tally's stock valuation and are not compared)", len(r.Stock))
 		}
+		for _, u := range r.ZeroNet {
+			s += fmt.Sprintf(".\nNote: %+q is in vouchers but not in Tally's ledger list; its entries net to zero, so no balance changes%s", u, r.Where[u])
+		}
 		return s
 	}
 	var b strings.Builder
@@ -85,8 +89,12 @@ func (r Result) String() string {
 		}
 		fmt.Fprintf(&b, "  %-30s Tally %18s  local %18s\n", m.Ledger, Rs(m.Tally), Rs(m.Ours))
 	}
-	for _, u := range r.Unknown {
-		fmt.Fprintf(&b, "  ledger %q used in vouchers but not in ledger list\n", u)
+	for i, u := range r.Unknown {
+		if i == 10 {
+			fmt.Fprintf(&b, "  ... and %d more ledgers not in Tally's ledger list\n", len(r.Unknown)-10)
+			break
+		}
+		fmt.Fprintf(&b, "  ledger %+q is in vouchers but not in Tally's ledger list%s\n", u, r.Where[u])
 	}
 	return b.String()
 }
@@ -132,14 +140,25 @@ func Run(db *store.DB) (Result, error) {
 	if err != nil {
 		return r, err
 	}
+	var unknown []string
 	for urows.Next() {
 		var n string
 		urows.Scan(&n)
-		r.Unknown = append(r.Unknown, n)
+		unknown = append(unknown, n)
 	}
 	urows.Close()
 	r.Where = map[string]string{}
-	for _, u := range r.Unknown {
+	for _, u := range unknown {
+		// Lines that net to zero change no balance (every ledger can still match Tally): a note,
+		// not a block. Seen on a real client: one party name in vouchers but not in the list.
+		var net int64
+		db.QueryRow(`SELECT COALESCE(SUM(vl.amount), 0) FROM vlines vl JOIN acct_vouchers v ON v.guid = vl.voucher_guid
+			WHERE vl.ledger = ?`, u).Scan(&net)
+		if net == 0 {
+			r.ZeroNet = append(r.ZeroNet, u)
+		} else {
+			r.Unknown = append(r.Unknown, u)
+		}
 		var n int
 		var d, ty, no string
 		db.QueryRow(`SELECT COUNT(DISTINCT v.guid), MIN(v.date) FROM vlines vl JOIN acct_vouchers v ON v.guid = vl.voucher_guid

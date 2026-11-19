@@ -149,3 +149,24 @@ func TestPostDatedLeftOut(t *testing.T) {
 		t.Fatalf("future post-dated must be left out, a due one counted: %+v", r.Mismatches)
 	}
 }
+
+// A name not in Tally's ledger list whose entries net to zero changes no balance: a note naming
+// the vouchers, not a block. One that does not net to zero still blocks.
+func TestZeroNetUnknownIsANote(t *testing.T) {
+	db := setup(t, -150000)
+	tx, _ := db.BeginVouchers()
+	tx.Put(tally.Voucher{GUID: "z1", Date: time.Now(), Type: "Journal", Number: "7",
+		Lines: []tally.LedgerLine{{Ledger: "RELIANCE RETAIL LIMITED", Amount: -500}, {Ledger: "RELIANCE RETAIL LIMITED", Amount: 500}}})
+	tx.Commit()
+	r, _ := Run(db)
+	if !r.OK() || len(r.ZeroNet) != 1 || !strings.Contains(r.String(), "net to zero") || !strings.Contains(r.String(), "Journal no. 7") {
+		t.Fatalf("zero-net unknown must be a note naming the voucher:\n%s", r)
+	}
+	tx, _ = db.BeginVouchers()
+	tx.Put(tally.Voucher{GUID: "z2", Date: time.Now(), Type: "Journal", Number: "8",
+		Lines: []tally.LedgerLine{{Ledger: "Ghost", Amount: -500}, {Ledger: "Cash", Amount: 500}}})
+	tx.Commit()
+	if r, _ := Run(db); r.OK() || len(r.Unknown) != 1 || !strings.Contains(r.String(), "Journal no. 8") {
+		t.Fatalf("non-zero unknown must block and name the voucher:\n%s", r)
+	}
+}
