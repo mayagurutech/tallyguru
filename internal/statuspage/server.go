@@ -195,7 +195,7 @@ func Serve(root, version string, cfg config.Config, c *tally.Client, out func(st
 	srv := &http.Server{Handler: Handler(root, version, cfg, c, tok, done, out), ReadHeaderTimeout: 10 * time.Second}
 	go srv.Serve(ln)
 	url := fmt.Sprintf("http://%s/?t=%s", ln.Addr(), tok)
-	out("Status page: " + url + "\nIt opens in your browser. Click Close there when done (or press Ctrl+C here).")
+	out("Status page: " + url + "\nIt opens in your browser. Keep this window open while you use the panel: closing it stops the panel. Click Close on the page when done.")
 	exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	<-done
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
