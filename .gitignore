@@ -1,0 +1,11 @@
+*.exe
+*.db
+*.db-*
+/data/
+/dist/
+
+# Local dev MCP config (machine-specific path)
+.mcp.json
+
+# Benchmark outputs (contain client data previews)
+/bench/*.json

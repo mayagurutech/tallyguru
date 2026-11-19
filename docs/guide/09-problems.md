@@ -1,0 +1,21 @@
+# 9. Problems
+
+Start with the control panel's **Connection** section, or run `tallyguru doctor`. Each red line
+says what to do.
+
+| Problem | What to do |
+|---|---|
+| "Nothing is listening" on localhost:9000 | Open TallyPrime. **F1 > Settings > Connectivity**: TallyPrime acts as Server (or Both), port 9000. Restart TallyPrime. |
+| "No company is open" | Open the company in TallyPrime (Alt+F3). |
+| The AI app shows no Tally tools | Connect it in **AI app**, then fully quit the AI app (tray icon > Quit) and reopen it. After changing Features, restart it again. |
+| "No authorisation" | Record it in **Add a company** (each financial year). |
+| Trial balance does not match | Click **Full re-check**. If it still differs, the books changed during the sync, or Tally has a problem (try Tally's own data repair after a backup), and the answers carry a warning meanwhile. |
+| Sync is slow | The first sync reads every month once; later syncs read only changes. For very large companies run it from a Command Prompt with `-weekly`. Tally stays usable meanwhile. |
+| "Writing to ... refused" | Only TEST MCP is writable by default. For a real client, type **ALLOW WRITES** in its **Drafts and writes** and restart the AI app. |
+| "Windows protected your PC" when installing | The program isn't code-signed yet. Click **More info > Run anyway**. |
+| A posted entry looks wrong | Ask the AI to cancel or delete it (needs the Alter/cancel/delete switch and the typed word), or correct it in Tally. The original is in the write log. |
+
+## Reporting a problem
+
+Run `tallyguru doctor` and include its output. Don't send company data or Excel files. Say what you
+did and what you expected.

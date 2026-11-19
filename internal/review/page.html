@@ -1,0 +1,114 @@
+﻿<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ledger review</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--mute:#5d6577;--line:#dde1e8;--acc:#1f6feb;--ok:#1a7f37;--warn:#b35900;--low:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2128;--ink:#e6e8ec;--mute:#9aa3b2;--line:#2e343e;--acc:#4c8dff;--ok:#3fb950;--warn:#e3a043;--low:#f47067}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,sans-serif}
+header{position:sticky;top:0;z-index:2;background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px}
+h1{font-size:18px;margin:0 0 6px}.sub{color:var(--mute);font-size:13px}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0}.bar i{display:block;height:100%;background:var(--ok);width:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tab{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:18px;padding:5px 12px;cursor:pointer;font-size:14px}
+.tab.on{background:var(--acc);border-color:var(--acc);color:#fff}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.q b{font-size:16px}.q p{margin:4px 0 0;color:var(--mute);font-size:13px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+select,input[type=search]{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);max-width:100%}
+button{font:inherit;padding:7px 14px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}button.go{background:var(--ok);border-color:var(--ok);color:#fff}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--mute);font-weight:600;background:var(--bg)}
+td.c{width:44px;text-align:center}input[type=checkbox]{width:18px;height:18px;cursor:pointer}
+.grp{color:var(--mute);font-size:12px}.why{color:var(--mute);font-size:12px}
+.pill{font-size:11px;border-radius:9px;padding:1px 7px;margin-right:4px;border:1px solid}
+.sure{color:var(--ok)}.likely{color:var(--warn)}.guess{color:var(--low)}
+tr.done{opacity:.55}tr.changed td:nth-child(3) select{border-color:var(--acc)}
+.foot{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.msg{color:var(--ok);font-size:14px}
+.how{font-size:13px;color:var(--mute);margin:6px 0 0;padding-left:18px}
+@media(max-width:640px){td.g,th.g{display:none}}
+</style></head><body>
+<header>
+ <h1>Ledger review: {{COMPANY}}</h1>
+ <div class="sub" id="prog"></div><div class="bar"><i id="pbar"></i></div>
+ <ol class="how">
+  <li>Most answers are already <b>decided from your books</b> (TDS actually deducted, GST input actually booked, where each tax ledger is used). You only see the few where the books leave a doubt.</li>
+  <li>For each: if the answer is right, tick <b>OK</b>; if not, pick the right one (it ticks itself). Then <b>Save</b> and <b>Finish</b>.</li>
+  <li>To look over what the tool decided, choose <b>Decided from books</b> in the first list.</li>
+ </ol>
+ <div class="tabs" id="tabs"></div>
+</header>
+<main>
+ <div class="q"><b id="qq"></b><p id="qh"></p></div>
+ <div class="tools">
+  <select id="show"><option value="todo">Please check</option><option value="auto">Decided from books</option><option value="done">Saved by you</option><option value="all">All</option></select>
+  <select id="sug"></select>
+  <input type="search" id="find" placeholder="Search ledger or group">
+  <button id="tickall">Tick all shown</button>
+ </div>
+ <table><thead><tr><th class="c">OK</th><th>Ledger</th><th>Answer</th><th class="g">Why we suggest it</th></tr></thead><tbody id="tb"></tbody></table>
+</main>
+<div class="foot">
+ <span class="msg" id="msg"></span>
+ <span><button class="go" id="save">Save</button> <button id="finish">Finish</button></span>
+</div>
+<script>
+const T=new URLSearchParams(location.search).get('t');let D,cur='tds';const pend=new Map();
+const conf={auto:['From books','sure'],ask:['Please check','guess']};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function load(){D=await (await fetch('/data?t='+T)).json();tabs();render();}
+function fam(id){return D.families.find(f=>f.ID===id)}
+function label(f,t){const c=fam(f).Choices.find(c=>c[0]===t);return c?c[1]:t}
+function tabs(){
+ const all=D.rows.length,ask=D.rows.filter(r=>!r.Done&&r.Conf==='ask').length,done=all-ask;
+ $('prog').textContent=ask?`${done} of ${all} answers decided. ${ask} need you.`:`All ${all} answers decided. Nothing needs you: click Finish.`;$('pbar').style.width=(100*done/all)+'%';
+ const names={tds:'TDS',gst:'GST credit',tax:'Tax ledgers',flag:'Ledger type'};
+ $('tabs').innerHTML=D.families.map(f=>{const left=D.rows.filter(r=>r.Family===f.ID&&!r.Done&&r.Conf==='ask').length;
+  return `<button class="tab ${f.ID===cur?'on':''}" data-f="${f.ID}">${names[f.ID]} ${left?`(${left} to check)`:'âœ“'}</button>`}).join('');
+ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{cur=b.dataset.f;$('sug').value='';tabs();render()});
+}
+function rows(){
+ const s=$('show').value,q=$('find').value.toLowerCase(),g=$('sug').value;
+ return D.rows.filter(r=>r.Family===cur&&(s==='all'||(s==='done'?r.Done:!r.Done&&(s==='auto'?r.Conf==='auto':r.Conf==='ask')))
+  &&(!g||r.Tag===g)&&(!q||r.Ledger.toLowerCase().includes(q)||r.Group.toLowerCase().includes(q)));
+}
+function render(){
+ const f=fam(cur);$('qq').textContent=f.Question;$('qh').textContent=f.Help;
+ const base=D.rows.filter(r=>r.Family===cur),used=[...new Set(base.map(r=>r.Tag))];
+ const keep=$('sug').value;
+ $('sug').innerHTML='<option value="">Answer: any</option>'+used.map(t=>`<option value="${esc(t)}">Answer: ${esc(label(cur,t))} (${base.filter(r=>r.Tag===t).length})</option>`).join('');
+ $('sug').value=used.includes(keep)?keep:'';
+ const rs=rows();
+ $('tb').innerHTML=rs.length?rs.slice(0,400).map(r=>{const k=r.GUID+'|'+r.Family,p=pend.get(k),[cl,cc]=conf[r.Conf]||['',''];
+  const val=p?p:r.Tag;
+  return `<tr data-k="${esc(k)}" class="${r.Done?'done':''} ${p&&p!==r.Tag?'changed':''}"><td class="c"><input type="checkbox" ${p||r.Done?'checked':''}></td>
+  <td>${esc(r.Ledger)}<div class="grp">${esc(r.Group)}</div></td>
+  <td><select>${f.Choices.map(c=>`<option value="${esc(c[0])}" ${c[0]===val?'selected':''}>${esc(c[1])}</option>`).join('')}</select></td>
+  <td class="g why"><span class="pill ${cc}">${cl}</span>${esc(r.Why)}</td></tr>`}).join('')
+  :'<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--mute)">Nothing here. Try another tab or "All".</td></tr>';
+ document.querySelectorAll('#tb tr[data-k]').forEach(tr=>{
+  const k=tr.dataset.k,cb=tr.querySelector('input'),sel=tr.querySelector('select');
+  cb.onchange=()=>{cb.checked?pend.set(k,sel.value):pend.delete(k);note()};
+  sel.onchange=()=>{cb.checked=true;pend.set(k,sel.value);tr.classList.add('changed');note()};
+ });
+ note();
+}
+function note(){$('msg').textContent=pend.size?`${pend.size} answers ticked, not saved yet`:''}
+$('show').onchange=render;$('sug').onchange=render;$('find').oninput=render;
+$('tickall').onclick=()=>{document.querySelectorAll('#tb tr[data-k]').forEach(tr=>{const cb=tr.querySelector('input');cb.checked=true;pend.set(tr.dataset.k,tr.querySelector('select').value)});note()};
+async function save(pre=''){
+ if(!pend.size){$('msg').textContent=pre||'Nothing ticked.';return}
+ const body=[...pend].map(([k,t])=>{const [g,f]=k.split('|');return{GUID:g,Family:f,Tag:t}});
+ const r=await (await fetch('/save?t='+T,{method:'POST',body:JSON.stringify(body)})).json();
+ pend.clear();await load();$('msg').textContent=pre+`Saved ${r.saved}.`;
+}
+$('save').onclick=()=>save();
+$('finish').onclick=async()=>{if(pend.size&&!confirm('Some ticked answers are not saved. Finish anyway?'))return;
+ await fetch('/finish?t='+T,{method:'POST'});document.body.innerHTML='<main><h1>Done. You can close this tab.</h1></main>'};
+window.onbeforeunload=()=>pend.size?true:undefined;
+load();
+</script></body></html>

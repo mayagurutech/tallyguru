@@ -1,0 +1,19 @@
+Tally MCP by Guru - please read before installing
+
+Tally MCP by Guru is free software provided "as is" under the MIT licence, without any warranty.
+It assists with accounting, reconciliation, audit checks and reports; it is not professional,
+tax or legal advice.
+
+- Back up your Tally data before any entry is posted.
+- Check every output yourself.
+- Audit findings need the auditor's own judgment and sign-off.
+- You are responsible for your clients' data and for holding their written authorisation.
+
+Data protection: The Digital Personal Data Protection Act, 2023 applies to personal data in these
+books. Data the AI reads is sent to your AI service provider for processing. You must have written
+authorisation from the business before continuing.
+
+The tool sends nothing to the author and has no cloud component. Your books are kept on this PC.
+
+Not affiliated with or endorsed by Tally Solutions Pvt. Ltd. Tally and TallyPrime are trademarks
+of Tally Solutions Pvt. Ltd.

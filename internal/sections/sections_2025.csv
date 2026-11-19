@@ -1,0 +1,17 @@
+key,s2025,s1961,subject,source,verified
+40A(3),36(4),40A(3),"Cash payment over 10,000 to a person in a day",public mapping tables (Audcrix),no
+40A(3)-transport,36(6),40A(3) proviso,"Cash payment to goods carriage operator over 35,000",public mapping tables (Audcrix),no
+40(a)(ia),35,40(a)(ia),Expense disallowed when TDS not deducted or not paid,"public mapping tables (Cleartax, TaxGuru); one says 35 also 66",no
+43B(h),37,43B(h),Payment to micro/small enterprise beyond the time limit,public mapping tables (TaxGuru),no
+269SS,185(1),269SS,"Loan or deposit taken in cash of 20,000 or more",public mapping tables (Audcrix),no
+269T,,269T,"Loan or deposit repaid in cash of 20,000 or more",not found yet,no
+269ST,186,269ST,Cash received of 2 lakh or more from a person,public mapping tables (Figment),no
+206AA,397(2)(b)(i),206AA,Higher TDS when PAN not given,public mapping tables (Audcrix),no
+192,,192,TDS on salary,not found yet,no
+194A,,194A,TDS on interest,not found yet,no
+194C,,194C,TDS on contractor payments,not found yet,no
+194H,,194H,TDS on commission or brokerage,not found yet,no
+194I,,194I,TDS on rent,not found yet,no
+194J,,194J,TDS on professional or technical fees,not found yet,no
+194Q,,194Q,TDS on purchase of goods,not found yet,no
+195,,195,"TDS on payments to non-residents",not found yet,no

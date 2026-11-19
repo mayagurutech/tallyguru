@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tally MCP control panel</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--mute:#5d6577;--line:#dde1e8;--acc:#1f6feb;--ok:#1a7f37;--warn:#b35900;--bad:#b42318}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2128;--ink:#e6e8ec;--mute:#9aa3b2;--line:#2e343e;--acc:#4c8dff;--ok:#3fb950;--warn:#e3a043;--bad:#f47067}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,Segoe UI,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 8px}.sub{color:var(--mute);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--mute)}
+.ok .dot,.dot.ok{background:var(--ok)}.bad .dot,.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}
+.tag{font-size:12px;border:1px solid var(--line);border-radius:9px;padding:1px 8px;color:var(--mute)}
+.tag.on{color:var(--ok);border-color:var(--ok)}.tag.soon{opacity:.6}
+table{width:100%;border-collapse:collapse}th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mute);font-weight:600}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+button{font:inherit;font-size:13px;padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.co{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}.co:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 16px;margin:6px 0}
+.k{color:var(--mute);font-size:12px}.msg{font-size:13px;color:var(--ok);min-height:1em}
+.err{color:var(--bad)}
+#welcome{position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:9;display:none}
+#welcome .card{max-width:760px;margin:24px auto}
+.legal{white-space:pre-wrap;font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0}
+.chk{display:grid;grid-template-columns:22px 1fr;gap:2px 6px;margin:6px 0}
+.fix{font-size:13px;color:var(--mute)}
+.sw{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line)}
+.sw .t{margin-left:auto;font-size:12px;color:var(--mute);white-space:nowrap}
+select,input[type=text],input[type=number]{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+@media(max-width:640px){.hide-s{display:none}}
+</style></head><body>
+<header>
+ <div><h1>Tally MCP by Guru</h1><div class="sub" id="when">Loading…</div></div>
+ <div class="row"><button onclick="load()">Refresh</button><button onclick="finish()">Close</button></div>
+</header>
+<div id="welcome"><div class="card"><h2>Welcome to Tally MCP by Guru</h2>
+ <div class="row"><span class="k">Language</span><select id="wlang"><option value="en">English</option><option value="hi">Hindi (draft)</option></select></div>
+ <h2 style="margin-top:12px">Please read</h2><div class="legal" id="wdis"></div>
+ <h2>Data protection</h2><div class="legal" id="wnot"></div>
+ <h2>Who will use it?</h2><div class="row" id="wroles"></div>
+ <div class="sub" style="margin:6px 0">You can change features later. Writing to Tally stays off until you switch it on, and works only after a preview you confirm.</div>
+ <label class="row"><input type="checkbox" id="wok"> I have read the above and agree.</label>
+ <div class="row" style="margin-top:10px"><button class="pri" onclick="agree()">Continue</button><span class="msg err" id="wmsg"></span></div>
+</div></div>
+<main>
+ <section class="card"><h2>Connection</h2><div id="conn"></div><div id="checks"></div>
+  <div class="row" style="margin-top:6px"><span class="k">Tally host</span><input type="text" id="host" size="12"><span class="k">port</span><input type="number" id="port" style="width:80px"><button onclick="saveConn()">Save</button><button onclick="runChecks()">Check again</button></div><div class="msg" id="cmsg"></div></section>
+ <section class="card"><h2>AI app</h2><div id="ai"></div>
+  <div class="row" style="margin-top:6px"><button id="aibtn" class="pri" onclick="connectClaude()">Connect Claude Desktop</button><button onclick="showChange()">Show the change first</button></div>
+  <pre class="legal" id="aichange" style="display:none;max-height:260px;overflow:auto"></pre>
+  <div class="sub" style="margin-top:6px">Claude Code or another MCP app: add this server yourself:</div><div class="legal" id="aicode"></div>
+  <div class="msg" id="aimsg"></div></section>
+ <section class="card"><h2>Add a company</h2>
+  <div class="row"><span class="k">Open in Tally</span><select id="newco"></select><button onclick="loadOpen()">Refresh list</button></div>
+  <div class="row" style="margin-top:6px"><span class="k">Authorisation</span><select id="akind" onchange="authText()">
+   <option value="self">I am a professional with written authorisation (self-certification)</option>
+   <option value="owner">I am the owner of this business (owner's declaration)</option>
+   <option value="letter">Self-certification + keep a copy of the signed letter (PDF/JPG/PNG)</option>
+   <option value="email">Self-certification + keep a copy of the email (.eml/.msg)</option></select></div>
+  <div class="legal" id="atext"></div>
+  <div class="row" id="afilerow" style="display:none"><input type="file" id="afile"></div>
+  <div class="row"><span class="k" id="aword"></span><input type="text" id="atyped" size="16"><button class="pri" onclick="authorise()">Record and continue</button></div>
+  <div class="msg" id="amsg"></div></section>
+ <section class="card" id="jobcard" style="display:none"><h2>Sync</h2><pre class="legal" id="joblog" style="max-height:240px;overflow:auto"></pre></section>
+ <section class="card"><h2>Companies</h2><div id="cos"></div><div class="msg" id="msg"></div></section>
+ <section class="card" id="wcard" style="display:none"><h2 id="wtitle">Drafts and writes</h2>
+  <div id="wlive"></div>
+  <h2 style="margin-top:10px">Waiting drafts</h2><div id="wlist"></div>
+  <div class="msg" id="wmsg2"></div>
+  <h2 style="margin-top:10px">Remembered rules</h2><pre class="legal" id="rlist"></pre>
+  <div class="row"><span class="k">Words</span><input type="text" id="rmatch" size="18"><span class="k">ledger</span><input type="text" id="rledger" size="22"><button onclick="ruleAdd()">Add rule</button>
+   <span class="k">Rule id</span><input type="number" id="rid" style="width:70px"><button onclick="ruleDel()">Delete rule</button></div>
+  <div class="msg" id="rmsg"></div>
+  <h2 style="margin-top:10px">Write log (latest first)</h2><div id="wlog"></div></section>
+ <section class="card"><h2>Updates</h2><div class="row"><button onclick="checkUpdate()">Check for a new version</button><span class="sub">Reads only the public release page on GitHub; nothing about you or your books is sent.</span></div><div class="msg" id="umsg"></div></section>
+ <section class="card"><h2>Recent Excel files</h2><div id="exp"></div></section>
+ <section class="card"><h2>Features</h2>
+  <div class="row"><span class="k">Role</span><select id="prof" onchange="setProfile()"></select><span class="sub" id="tok"></span></div>
+  <div id="mods" style="margin-top:6px"></div>
+  <div class="sw"><input type="checkbox" id="ro"><div><b>Read-only</b><div class="sub">Hides every tool that writes to Tally.</div></div></div>
+  <div class="sw"><input type="checkbox" id="pm"><div><b>Privacy mode</b><div class="sub">Party names become codes (P001...) in AI answers; Excel keeps real names on this PC.</div></div></div>
+  <div class="sw"><input type="checkbox" id="mk"><div><b>Mask PAN, phone, bank and Aadhaar numbers</b><div class="sub">On by default.</div></div></div>
+  <div class="row" style="margin-top:8px"><button class="pri" onclick="saveFeat()">Save features</button><span class="msg" id="fmsg"></span></div></section>
+</main>
+<script>
+const T=new URLSearchParams(location.search).get('t');
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const call=(p,q)=>fetch(p+'?t='+T+(q?'&'+new URLSearchParams(q):''),{method:'POST'});
+async function load(){
+ let s;
+ try{s=await (await fetch('/data?t='+T)).json()}catch(e){$('when').textContent='Could not load status.';return}
+ $('when').textContent='Version '+s.Version+' · checked '+s.Checked+(s.ReadOnly?' · read-only':'');
+ const c=s.Tally;
+ $('conn').innerHTML=`<div class="row ${c.Reachable?'ok':'bad'}"><span class="dot"></span><b>TallyPrime ${c.Reachable?'connected':'not connected'}</b><span class="sub">${esc(c.URL)}</span></div>`+
+  (c.Error?`<div class="sub err">${esc(c.Error)}</div>`:'')+
+  (c.Reachable?`<div class="sub">Open in Tally now: ${c.Open&&c.Open.length?c.Open.map(esc).join(', '):'no company open'}</div>`:'');
+ $('cos').innerHTML=(s.Companies||[]).map(co=>{
+  const tbOk=co.TB==='ok';
+  const maps=(co.Mapping||[]).map(f=>`<tr><td>${esc(f.Family)}</td><td class="n">${f.Total}</td><td class="n">${f.Auto}</td><td class="n">${f.User}</td><td class="n">${f.Ask?'<b>'+f.Ask+'</b>':0}</td></tr>`).join('');
+  return `<div class="co"><div class="row"><b>${esc(co.Name)}</b><span class="tag">${esc(co.Source)}</span>${co.GSTIN?`<span class="tag">${esc(co.GSTIN)}</span>`:''}</div>
+  <div class="grid">
+   <div><span class="k">Last sync</span><br>${esc(co.LastSync||'never')}</div>
+   <div><span class="k">Trial balance vs Tally</span><br><span class="dot ${tbOk?'ok':'bad'}"></span> ${tbOk?'matches':esc(co.TB||'not checked')}</div>
+   <div><span class="k">Data</span><br>${co.Vouchers} vouchers, ${co.Ledgers} ledgers${co.From?`<br><span class="sub">${esc(co.From)} to ${esc(co.To)}</span>`:''}</div>
+   <div><span class="k">Authorisation</span><br><span class="dot ${co.AuthOK?'ok':'bad'}"></span> ${esc(co.Auth)}${co.AuthDue?`<br><span class="sub">Re-confirm from ${esc(co.AuthDue)}</span>`:''}</div>
+  </div>
+  ${co.TBDetail?`<div class="sub err">${esc(co.TBDetail)}</div>`:''}
+  ${maps?`<table><tr><th>Ledger mapping</th><th>Tags</th><th>Decided from books</th><th>Set by you</th><th>Need you</th></tr>${maps}</table>`:'<div class="sub">Mapping not run yet.</div>'}
+  <div class="row" style="margin-top:8px">${co.AuthOK?`<button class="${co.NeedUser?'pri':''}" onclick="review('${esc(co.Name)}','${esc(co.Source)}')">${co.NeedUser?'Answer '+co.NeedUser+' mapping question'+(co.NeedUser>1?'s':''):'Review mapping'}</button>`:''}
+   <button onclick="sync('${esc(co.Name)}','${esc(co.Source)}',false)">Sync now</button><button onclick="sync('${esc(co.Name)}','${esc(co.Source)}',true)">Full re-check</button><button onclick="folder('${esc(co.Name)}')">Open Excel folder</button><button onclick="writes('${esc(co.Name)}','${esc(co.Source)}')">Drafts and writes</button><button onclick="forget('${esc(co.Name)}','${esc(co.Source)}')">Delete local data</button></div></div>`}).join('')||'<div class="sub">No company synced yet.</div>';
+ $('exp').innerHTML=(s.Exports&&s.Exports.length)?`<table><tr><th>File</th><th class="hide-s">Company</th><th>Saved</th><th class="n hide-s">Size</th></tr>`+
+  s.Exports.map(x=>`<tr><td>${esc(x.Name)}</td><td class="hide-s">${esc(x.Company)}</td><td>${esc(x.When)}</td><td class="n hide-s">${Math.max(1,Math.round(x.Size/1024))} KB</td></tr>`).join('')+'</table>'+
+  `<div class="sub" style="margin-top:6px">Folder: ${esc(s.ExportDir)}</div>`:'<div class="sub">No Excel files yet.</div>';
+}
+let S;
+async function settings(){
+ S=await (await fetch('/settings?t='+T)).json();
+ $('wlang').value=S.Language||'en';$('wdis').textContent=S.Disclaimer;$('wnot').textContent=S.Notice;
+ const cur=(S.Profile||'').replace('*','');
+ $('wroles').innerHTML=S.Names.filter(n=>n!=='banker').map(n=>`<label class="tag"><input type="radio" name="wr" value="${n}" ${n===cur?'checked':''}> ${n}</label>`).join('');
+ $('welcome').style.display=S.NeedAgree?'block':'none';
+ $('host').value=S.Host;$('port').value=S.Port;
+ const custom=S.Profile.endsWith('*')||!S.Names.includes(cur);
+ $('prof').innerHTML=S.Names.filter(n=>n!=='banker').map(n=>`<option ${n===cur&&!custom?'selected':''}>${n}</option>`).join('')+(custom?'<option selected value="">custom</option>':'');
+ $('mods').innerHTML=S.Modules.filter(m=>m.Built&&(m.Tokens>0||m.ID==='core')).map(m=>`<label class="sw"><input type="checkbox" data-m="${m.ID}" ${m.On?'checked':''} ${m.ID==='core'?'disabled':''}><div><b>${esc(m.Name)}</b>${m.Write?' <span class="tag">writes to Tally</span>':''}</div><span class="t">~${m.Tokens} tokens</span></label>`).join('');
+ $('ro').checked=S.ReadOnly;$('pm').checked=S.PrivacyMode;$('mk').checked=S.Masking;
+ $('tok').textContent='Tools loaded now: ~'+S.Tokens+' tokens (target under 1,500)';
+}
+async function post(p,body){const r=await fetch(p+'?t='+T,{method:'POST',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return [r.ok,await r.text()]}
+async function agree(){
+ if(!$('wok').checked){$('wmsg').textContent='Please tick the box to agree.';return}
+ const role=(document.querySelector('input[name=wr]:checked')||{}).value;
+ const ch={language:$('wlang').value};if(role)ch.profile=role;
+ let [ok,t]=await post('/save',ch);if(!ok){$('wmsg').textContent=t;return}
+ [ok,t]=await post('/agree');if(!ok){$('wmsg').textContent=t;return}
+ await settings();load();runChecks();
+}
+async function setProfile(){const p=$('prof').value;if(!p)return;const [ok,t]=await post('/save',{profile:p});$('fmsg').textContent=t;$('fmsg').className='msg'+(ok?'':' err');settings()}
+async function saveFeat(){
+ const m={};document.querySelectorAll('[data-m]').forEach(x=>m[x.dataset.m]=x.checked);
+ const [ok,t]=await post('/save',{modules:m,read_only:$('ro').checked,privacy_mode:$('pm').checked,masking:$('mk').checked});
+ $('fmsg').textContent=t;$('fmsg').className='msg'+(ok?'':' err');settings();load();
+}
+async function saveConn(){const [ok,t]=await post('/save',{host:$('host').value,port:+$('port').value});$('cmsg').textContent=ok?'Saved.':t;runChecks();load()}
+async function runChecks(){
+ $('checks').innerHTML='<div class="sub">Checking…</div>';
+ const cs=await (await fetch('/checks?t='+T)).json();
+ $('checks').innerHTML=cs.map(k=>`<div class="chk"><span class="dot ${k.OK?'ok':k.Warn?'warn':'bad'}" style="margin-top:5px"></span><div><b>${esc(k.Name)}</b> <span class="sub">${esc(k.Detail)}</span>${k.Fix&&!k.OK?`<div class="fix">${esc(k.Fix)}</div>`:''}</div></div>`).join('');
+}
+async function review(n,src){const r=await call('/review',{company:n,source:src});$('msg').textContent=r.ok?'The mapping review opens in a new tab.':await r.text()}
+async function folder(n){const r=await call('/folder',{company:n});$('msg').textContent=r.ok?'':await r.text()}
+async function finish(){await call('/finish');document.body.innerHTML='<main><div class="card">Closed. You can close this tab.</div></main>'}
+async function aiLoad(){
+ const r=await fetch('/claude?t='+T);if(!r.ok){$('ai').innerHTML='<div class="sub err">'+esc(await r.text())+'</div>';return}
+ const p=await r.json();
+ $('ai').innerHTML=`<div class="row"><span class="dot ${p.Already?'ok':'warn'}"></span><b>Claude Desktop</b><span class="sub">${p.Already?'connected':p.Exists?'installed, not connected yet':'settings file not found: connecting will create it'}</span></div><div class="sub">${esc(p.Path)}</div>`;
+ $('aibtn').textContent=p.Already?'Connect again':'Connect Claude Desktop';
+ $('aicode').textContent=p.ClaudeCode;$('aichange').textContent=p.After;
+}
+function showChange(){const e=$('aichange');e.style.display=e.style.display==='none'?'block':'none'}
+function connectClaude(){
+ $('aichange').style.display='block';
+ $('aimsg').className='msg';
+ $('aimsg').innerHTML='This writes the entry shown above into Claude Desktop\'s settings (a copy of the old file is kept). <button class="pri" id="aiyes">Yes, write it</button> <button id="aino">Cancel</button>';
+ $('aiyes').onclick=doConnect;$('aino').onclick=()=>{$('aimsg').textContent=''};
+}
+async function doConnect(){
+ const r=await fetch('/claude?t='+T,{method:'POST'});
+ $('aimsg').textContent=r.ok?'Connected. Fully quit Claude Desktop (tray icon > Quit) and open it again.':await r.text();
+ $('aimsg').className='msg'+(r.ok?'':' err');aiLoad();runChecks();
+}
+async function loadOpen(){
+ const r=await fetch('/open?t='+T);
+ if(!r.ok){$('newco').innerHTML='<option value="">Tally not reachable</option>';return}
+ const cs=await r.json()||[];
+ $('newco').innerHTML=cs.length?cs.map(n=>`<option>${esc(n)}</option>`).join(''):'<option value="">No company open in Tally</option>';
+}
+async function authText(){
+ const k=$('akind').value;const t=await (await fetch('/authtext?t='+T+'&kind='+k)).json();
+ $('atext').textContent=t.Notice+'\n\n'+t.Disclaimer+'\n\n'+t.Heading+'\n'+t.Declaration;
+ $('aword').textContent='Type '+t.Word+' to accept';
+ $('afilerow').style.display=(k==='letter'||k==='email')?'flex':'none';
+}
+async function authorise(){
+ const co=$('newco').value;if(!co){$('amsg').textContent='Open the company in Tally first.';return}
+ const rq={company:co,source:'live',kind:$('akind').value,typed:$('atyped').value};
+ const f=$('afile').files[0];
+ if(f&&(rq.kind==='letter'||rq.kind==='email')){rq.file_name=f.name;const b=new Uint8Array(await f.arrayBuffer());let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));rq.file=btoa(s)}
+ const [ok,t]=await post('/authorise',rq);
+ $('amsg').textContent=t;$('amsg').className='msg'+(ok?'':' err');
+ if(ok){$('atyped').value='';$('amsg').innerHTML=esc(t)+' <button class="pri" id="firstsync">Sync now</button> <span class="sub">Reads the books month by month; Tally stays usable.</span>';$('firstsync').onclick=()=>sync(co,'live',false);load()}
+}
+let jobTimer;
+async function sync(co,src,full){
+ const [ok,t]=await post('/sync',{Company:co,Source:src,Full:full});
+ if(!ok){$('msg').textContent=t;$('msg').className='msg err';return}
+ $('jobcard').style.display='block';clearInterval(jobTimer);jobTimer=setInterval(poll,1500);poll();
+}
+async function poll(){
+ const j=await (await fetch('/job?t='+T)).json();
+ $('joblog').textContent=(j.Company?'Syncing '+j.Company+'\n':'')+(j.Lines||[]).join('\n')+(j.Err?'\nError: '+j.Err:'')+(j.Done&&!j.Err?'\nDone.':'');
+ $('joblog').scrollTop=1e9;
+ if(!j.Running){clearInterval(jobTimer);load()}
+}
+function forget(co,src){
+ $('msg').className='msg err';
+ $('msg').innerHTML='This deletes everything stored on this PC for <b>'+esc(co)+'</b> ('+esc(src)+'): local books, mapping, rules, drafts and the authorisation record. Nothing in Tally changes.<br>Type the company name exactly: <input type="text" id="fgname" size="24"> <button id="fgyes">Delete</button> <button id="fgno">Cancel</button>';
+ $('fgno').onclick=()=>{$('msg').textContent=''};
+ $('fgyes').onclick=async()=>{
+  const [ok,t]=await post('/forget',{Company:co,Source:src,Typed:$('fgname').value});
+  $('msg').textContent=t;$('msg').className='msg'+(ok?'':' err');load();
+ };
+}
+let W={co:'',src:''};
+async function act(tool,args){return post('/act',{Company:W.co,Source:W.src,Tool:tool,Args:args})}
+async function writes(co,src){
+ W={co,src};$('wcard').style.display='block';$('wtitle').textContent='Drafts and writes: '+co;
+ const r=await fetch('/drafts?t='+T+'&company='+encodeURIComponent(co)+'&source='+encodeURIComponent(src));
+ if(!r.ok){$('wlist').textContent=await r.text();return}
+ const d=await r.json();
+ $('wlive').innerHTML=d.Test?'<div class="sub">TEST MCP: writes always allowed (test company).</div>':
+  d.Writable?`<div class="row"><span class="dot warn"></span><b>Writes to Tally are ON for this company.</b><button id="lwoff">Switch off</button></div>`:
+  `<div class="row"><span class="dot ok"></span>Writes to Tally are off for this company. To allow: type <b>${esc('ALLOW WRITES')}</b> <input type="text" id="lwword" size="14"><button id="lwon">Allow writes</button></div><div class="sub">Take a Tally backup (Alt+Y) first. Every entry still needs its preview confirmed.</div>`;
+ if($('lwoff'))$('lwoff').onclick=()=>liveSet(false,'');
+ if($('lwon'))$('lwon').onclick=()=>liveSet(true,$('lwword').value);
+ const items=d.Items||[];
+ const groups=[...new Set(items.filter(i=>i.Group).map(i=>i.Group))];
+ $('wlist').innerHTML=items.length?groups.map(g=>`<div class="row" style="margin:4px 0"><span class="tag">${esc(g)}</span><span class="sub">${items.filter(i=>i.Group===g).length} drafts</span><button data-g="${esc(g)}" data-a="post">Post group</button><button data-g="${esc(g)}" data-a="discard">Discard group</button></div>`).join('')+
+  items.map(i=>`<details class="co"><summary><b>#${i.ID}</b> ${esc(i.Kind)} · ${esc(i.Title)} ${i.Date?'· '+esc(i.Date):''} ${i.Amount?'· '+(i.Amount/100).toLocaleString('en-IN',{minimumFractionDigits:2}):''}</summary><pre class="legal">${esc(i.Preview)}</pre>`+
+  (i.Kind==='change'?`<div class="row">Type the word shown above: <input type="text" id="cw${i.ID}" size="14"><button class="pri" data-c="${i.ID}">Post change</button><button data-d="${i.ID}">Discard</button></div>`:
+  `<div class="row"><button class="pri" data-p="${i.ID}">Post to Tally</button><button data-d="${i.ID}">Discard</button></div>`)+'</details>').join(''):'<div class="sub">No drafts waiting.</div>';
+ $('wlist').querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>run('drafts',{action:'post',ids:b.dataset.p}));
+ $('wlist').querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>run('drafts',{action:'discard',ids:b.dataset.d}));
+ $('wlist').querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>run('drafts',{action:b.dataset.a,ids:'group:'+b.dataset.g}));
+ $('wlist').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>run('change',{draft_id:+b.dataset.c,confirm:$('cw'+b.dataset.c).value}));
+ $('wlog').innerHTML=(d.Log&&d.Log.length)?'<table><tr><th>When</th><th>Action</th><th>What</th></tr>'+d.Log.map(l=>`<tr><td>${esc(l.Time.replace('T',' ').slice(0,16))}</td><td>${esc(l.Action)}</td><td>${esc(l.What)}</td></tr>`).join('')+'</table>':'<div class="sub">No writes yet.</div>';
+ rules();
+}
+async function run(tool,args){
+ $('wmsg2').className='msg';$('wmsg2').textContent='Working… (posting re-syncs the books)';
+ const [ok,t]=await act(tool,args);
+ $('wmsg2').textContent=t;$('wmsg2').className='msg'+(ok&&!/^Not |Nothing posted/.test(t)?'':' err');
+ writes(W.co,W.src);load();
+}
+async function liveSet(on,typed){
+ const [ok,t]=await post('/livewrites',{Company:W.co,On:on,Typed:typed});
+ $('wmsg2').textContent=t;$('wmsg2').className='msg'+(ok?'':' err');writes(W.co,W.src);
+}
+async function rules(){const [ok,t]=await act('rules',{action:'list'});$('rlist').textContent=t}
+async function ruleAdd(){const [ok,t]=await act('rules',{action:'add',match:$('rmatch').value,ledger:$('rledger').value});$('rmsg').textContent=t;$('rmsg').className='msg'+(ok?'':' err');rules()}
+async function ruleDel(){const [ok,t]=await act('rules',{action:'delete',id:+$('rid').value});$('rmsg').textContent=t;$('rmsg').className='msg'+(ok?'':' err');rules()}
+async function checkUpdate(){$('umsg').textContent='Checking…';const r=await fetch('/update?t='+T,{method:'POST'});$('umsg').textContent=await r.text()}
+settings();load();runChecks();aiLoad();loadOpen();authText();
+</script>
+</body></html>
