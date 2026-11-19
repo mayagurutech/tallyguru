@@ -56,6 +56,9 @@ trademarks of Tally Solutions Pvt. Ltd.** "TallyPrime" is used only to describe 
 Step-by-step guides: [docs/guide](docs/guide/README.md).
 
 You can open the panel again any time from the Start menu: **Tally MCP control panel**.
+To update, open the panel's **Updates** section and click **Check for a new version**, then
+**Update now**. It downloads the installer from this repository's Releases, checks it against the
+published checksum and installs it; your data and settings stay. Then fully quit and reopen your AI app.
 For support, run `tallyguru doctor`: it checks Tally, the data folder and the AI app connection.
 
 ## Roles

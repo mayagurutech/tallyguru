@@ -24,7 +24,11 @@ jobs:
         run: go test ./...
 
       - name: Build exe
-        run: go build -trimpath -ldflags "-s -w" -o dist/tallyguru.exe ./cmd/tallyguru
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = if ($tag -like 'v*') { $tag.Substring(1) } else { "0.0.0-dev" }
+          go build -trimpath -ldflags "-s -w -X main.version=$ver" -o dist/tallyguru.exe ./cmd/tallyguru
 
       - name: Install Inno Setup 7.1.1
         shell: pwsh

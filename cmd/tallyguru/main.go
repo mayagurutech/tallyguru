@@ -18,7 +18,8 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/tally"
 )
 
-const version = "0.1.0-dev"
+// version is set from the release tag by the release build (-X main.version=...).
+var version = "0.1.0-dev"
 
 func usage() {
 	fmt.Fprintf(os.Stderr, `Tally MCP by Guru %s

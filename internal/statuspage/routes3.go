@@ -2,7 +2,6 @@ package statuspage
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,9 +17,6 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/tools"
 	"github.com/mayagurutech/tallyguru/internal/write"
 )
-
-// ReleasesURL is the public release info the update check reads (nothing is sent).
-var ReleasesURL = "https://api.github.com/repos/mayagurutech/tallyguru/releases/latest"
 
 // LiveWord must be typed to allow writes to a live company.
 const LiveWord = "ALLOW WRITES"
@@ -200,40 +196,5 @@ func addWriteRoutes(mux *http.ServeMux, root, version string, ok, post func(*htt
 		} else {
 			fmt.Fprintf(w, "Writes switched off for %s.", rq.Company)
 		}
-	})
-	mux.HandleFunc("/update", func(w http.ResponseWriter, r *http.Request) {
-		if !post(r) {
-			deny(w)
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-		defer cancel()
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, ReleasesURL, nil)
-		req.Header.Set("Accept", "application/vnd.github+json")
-		req.Header.Set("User-Agent", "tally-mcp-by-guru") // generic client name, no user details
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			fmt.Fprintf(w, "Could not reach GitHub (%v). You are on %s.", err, version)
-			return
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusNotFound {
-			fmt.Fprintf(w, "No public release yet. You are on %s.", version)
-			return
-		}
-		var rel struct {
-			Tag  string `json:"tag_name"`
-			URL  string `json:"html_url"`
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, resp.Body, 1<<20)).Decode(&rel); err != nil || rel.Tag == "" {
-			fmt.Fprintf(w, "Could not read the release info. You are on %s.", version)
-			return
-		}
-		if strings.TrimPrefix(rel.Tag, "v") == strings.TrimPrefix(version, "v") {
-			fmt.Fprintf(w, "You have the latest version (%s).", version)
-			return
-		}
-		fmt.Fprintf(w, "Version %s is available (you have %s). Download it from %s. Nothing is downloaded automatically.", rel.Tag, version, rel.URL)
 	})
 }

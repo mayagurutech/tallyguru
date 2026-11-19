@@ -76,7 +76,7 @@ select,input[type=text],input[type=number]{font:inherit;font-size:13px;padding:4
    <span class="k">Rule id</span><input type="number" id="rid" style="width:70px"><button onclick="ruleDel()">Delete rule</button></div>
   <div class="msg" id="rmsg"></div>
   <h2 style="margin-top:10px">Write log (latest first)</h2><div id="wlog"></div></section>
- <section class="card"><h2>Updates</h2><div class="row"><button onclick="checkUpdate()">Check for a new version</button><span class="sub">Reads only the public release page on GitHub; nothing about you or your books is sent.</span></div><div class="msg" id="umsg"></div></section>
+ <section class="card"><h2>Updates</h2><div class="row"><button onclick="checkUpdate()">Check for a new version</button><button id="ubtn" class="pri" hidden onclick="installUpdate()">Update now</button><span class="sub">Reads only the public release page on GitHub; nothing about you or your books is sent. Update now downloads the installer from GitHub, checks it against its published checksum, and installs it.</span></div><div class="msg" id="umsg"></div></section>
  <section class="card"><h2>Recent Excel files</h2><div id="exp"></div></section>
  <section class="card"><h2>Features</h2>
   <div class="row"><span class="k">Role</span><select id="prof" onchange="setProfile()"></select><span class="sub" id="tok"></span></div>
@@ -254,7 +254,9 @@ async function liveSet(on,typed){
 async function rules(){const [ok,t]=await act('rules',{action:'list'});$('rlist').textContent=t}
 async function ruleAdd(){const [ok,t]=await act('rules',{action:'add',match:$('rmatch').value,ledger:$('rledger').value});$('rmsg').textContent=t;$('rmsg').className='msg'+(ok?'':' err');rules()}
 async function ruleDel(){const [ok,t]=await act('rules',{action:'delete',id:+$('rid').value});$('rmsg').textContent=t;$('rmsg').className='msg'+(ok?'':' err');rules()}
-async function checkUpdate(){$('umsg').textContent='Checking…';const r=await fetch('/update?t='+T,{method:'POST'});$('umsg').textContent=await r.text()}
+async function checkUpdate(){$('umsg').textContent='Checking…';$('ubtn').hidden=true;const r=await fetch('/update?t='+T,{method:'POST'});const a=await r.json();$('umsg').textContent=a.Msg;if(a.Newer){$('ubtn').textContent='Update now to '+a.Tag;$('ubtn').hidden=false}}
+async function installUpdate(){$('ubtn').disabled=true;$('umsg').textContent='Downloading and checking the installer…';const r=await fetch('/update/install?t='+T,{method:'POST'});$('umsg').textContent=await r.text();if(!r.ok)$('ubtn').disabled=false}
+
 settings();load();runChecks();aiLoad();loadOpen();authText();
 </script>
 </body></html>

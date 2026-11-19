@@ -127,6 +127,13 @@ func Handler(root, version string, cfg config.Config, c *tally.Client, tok strin
 	})
 	addCompanyRoutes(mux, root, ok, post)
 	addWriteRoutes(mux, root, version, ok, post)
+	addUpdateRoutes(mux, version, post, func() {
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+	})
 	mux.HandleFunc("/finish", func(w http.ResponseWriter, r *http.Request) {
 		if post(r) {
 			fmt.Fprint(w, "ok")

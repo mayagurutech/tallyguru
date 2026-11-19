@@ -26,6 +26,10 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ChangesEnvironment=yes
+; Updates from the control panel run this quietly while the panel and the AI app's server are open:
+; close them, then reopen the panel.
+CloseApplications=force
+RestartApplications=no
 UninstallDisplayName=Tally MCP by Guru
 
 [Files]
@@ -47,6 +51,7 @@ Name: "{group}\Uninstall Tally MCP by Guru"; Filename: "{uninstallexe}"
 
 [Run]
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Description: "Open the control panel now"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Flags: nowait; Check: WizardSilent
 
 [Code]
 // Uninstall removes the program. Client data (books, authorisation records, rules) is deleted
