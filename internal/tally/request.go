@@ -86,7 +86,7 @@ func VoucherIDsRequest(company string, from, to time.Time) CollectionRequest {
 
 // dateFilter limits a Voucher collection to [from,to] with date literals. Kept in addition to
 // the SV period (belt and braces): early tests showed requests returning vouchers outside the
-// requested month when the period was sent in the wrong format. See docs/TALLY_NOTES.md.
+// requested month when the period was sent in the wrong format.
 func dateFilter(from, to time.Time) string {
 	return fmt.Sprintf(`$Date >= $$Date:"%s" AND $Date <= $$Date:"%s"`, from.Format("02-Jan-2006"), to.Format("02-Jan-2006"))
 }
