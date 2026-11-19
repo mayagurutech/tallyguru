@@ -12,7 +12,8 @@ func d(s string) time.Time { t, _ := time.Parse("2006-01-02", s); return t }
 
 func TestParseAmount(t *testing.T) {
 	cases := map[string]Paise{"": 0, "0": 0, "1234.50": 123450, "-1,234.5": -123450, "12": 1200,
-		".75": 75, "-0.01": -1, "1.005": 101, "-1.005": -101, "+3.10": 310}
+		".75": 75, "-0.01": -1, "1.005": 101, "-1.005": -101, "+3.10": 310,
+		"-$100.00 @ ₹83.00/$ = -₹8,300.00": -830000, "€ 50.00 @ ₹ 90.5/€ = ₹ 4525.00": 452500, "₹ -1,000.00": -100000}
 	for in, want := range cases {
 		got, err := ParseAmount(in)
 		if err != nil || got != want {
@@ -21,6 +22,9 @@ func TestParseAmount(t *testing.T) {
 	}
 	if _, err := ParseAmount("12a"); err == nil {
 		t.Error("expected error for 12a")
+	}
+	if _, err := ParseAmount("$100.00 @ 83.00/$"); err == nil {
+		t.Error("forex amount without a rupee value must be refused")
 	}
 }
 

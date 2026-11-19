@@ -134,3 +134,18 @@ func TestNameVariantsAndStock(t *testing.T) {
 		t.Errorf("party not resolved: %q", party)
 	}
 }
+
+// A post-dated voucher stays out of the books until its date; Tally's closing excludes it.
+func TestPostDatedLeftOut(t *testing.T) {
+	db := setup(t, -150000)
+	tx, _ := db.BeginVouchers()
+	tx.Put(tally.Voucher{GUID: "pd", Date: time.Now().AddDate(0, 1, 0), PostDated: true,
+		Lines: []tally.LedgerLine{{Ledger: "Cash", Amount: -7000}, {Ledger: "Sales", Amount: 7000}}})
+	tx.Put(tally.Voucher{GUID: "pd-due", Date: time.Now().AddDate(0, 0, -1), PostDated: true,
+		Lines: []tally.LedgerLine{{Ledger: "Cash", Amount: -1}, {Ledger: "Sales", Amount: 1}}})
+	tx.Commit()
+	r, _ := Run(db)
+	if len(r.Mismatches) != 2 || r.Mismatches[0].Ours != -150001 && r.Mismatches[1].Ours != -150001 {
+		t.Fatalf("future post-dated must be left out, a due one counted: %+v", r.Mismatches)
+	}
+}

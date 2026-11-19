@@ -34,6 +34,7 @@ type Result struct {
 	Ledgers    int
 	Mismatches []Mismatch
 	Unknown    []string // ledger names used in vouchers but missing from the ledger list
+	Where      map[string]string // for each unknown ledger: how many vouchers and the first one
 	BooksTotal int64    // must be 0
 	Stock      []Mismatch // Stock-in-Hand ledgers: Tally shows the inventory valuation, not checked
 }
@@ -137,6 +138,16 @@ func Run(db *store.DB) (Result, error) {
 		r.Unknown = append(r.Unknown, n)
 	}
 	urows.Close()
+	r.Where = map[string]string{}
+	for _, u := range r.Unknown {
+		var n int
+		var d, ty, no string
+		db.QueryRow(`SELECT COUNT(DISTINCT v.guid), MIN(v.date) FROM vlines vl JOIN acct_vouchers v ON v.guid = vl.voucher_guid
+			WHERE vl.ledger = ? AND vl.amount <> 0`, u).Scan(&n, &d)
+		db.QueryRow(`SELECT v.type, v.number FROM vlines vl JOIN acct_vouchers v ON v.guid = vl.voucher_guid
+			WHERE vl.ledger = ? AND vl.amount <> 0 AND v.date = ? LIMIT 1`, u, d).Scan(&ty, &no)
+		r.Where[u] = fmt.Sprintf(" (%d vouchers; first: %s %s no. %s)", n, d, ty, no)
+	}
 
 	status := "ok"
 	if !r.OK() {

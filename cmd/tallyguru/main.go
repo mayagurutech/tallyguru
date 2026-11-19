@@ -32,7 +32,9 @@ Commands:
   setup                choose role profile and features
   ui                   open the control panel in your browser (setup, connection, companies,
                        mapping, features); this PC only
-  doctor               check Tally, the data folder and the AI app connection
+  doctor [-tb]         check Tally, the data folder and the AI app connection; -tb also
+                       syncs every open, authorised company and checks its trial balance
+                       (prints counts only, safe to share)
   ping                check TallyPrime answers on host:port
   companies            list companies open in TallyPrime
   authorise ["<company>"] [-owner | -letter <file> | -email <file>]
@@ -54,6 +56,7 @@ func main() {
 	source := flag.String("source", "live", "data source: live or backup")
 	weekly := flag.Bool("weekly", false, "sync in weekly chunks (large companies)")
 	full := flag.Bool("full", false, "force a full month-by-month sync (default: only what changed)")
+	tbAll := flag.Bool("tb", false, "doctor: also sync and check the trial balance of every open, authorised company (counts only)")
 	root := flag.String("data", store.DefaultRoot(), "local data folder")
 	flag.Usage = usage
 	if len(os.Args) > 1 && os.Args[1] != "authorise" && os.Args[1] != "authorize" {
@@ -106,6 +109,12 @@ func main() {
 				fmt.Printf("%s %s: %s\n", mark, k.Name, k.Detail)
 				if k.Fix != "" && !k.OK {
 					fmt.Println("     " + k.Fix)
+				}
+			}
+			if *tbAll {
+				if e := runDoctorTB(ctx, tally.NewClient(cfg.Host, cfg.Port), *root, store.Source(*source)); e != nil {
+					fmt.Println("FIX  trial balance:", e)
+					bad++
 				}
 			}
 			if bad > 0 {

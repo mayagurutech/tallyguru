@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS ledgers (
 CREATE TABLE IF NOT EXISTS vouchers (
   guid TEXT PRIMARY KEY, date TEXT NOT NULL, type TEXT NOT NULL, number TEXT NOT NULL,
   party TEXT NOT NULL, reference TEXT NOT NULL, narration TEXT NOT NULL,
-  cancelled INTEGER NOT NULL, optional INTEGER NOT NULL, alter_id INTEGER NOT NULL, master_id INTEGER NOT NULL);
+  cancelled INTEGER NOT NULL, optional INTEGER NOT NULL, alter_id INTEGER NOT NULL, master_id INTEGER NOT NULL,
+  postdated INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS vlines (
   voucher_guid TEXT NOT NULL REFERENCES vouchers(guid) ON DELETE CASCADE,
   seq INTEGER NOT NULL, ledger TEXT NOT NULL, amount INTEGER NOT NULL,
@@ -100,6 +101,9 @@ func Open(root string, l Label) (*DB, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
+	// Columns added after a database was first created, before the views that use them (fails
+	// harmlessly on a new database, where the table does not exist yet).
+	db.Exec(`ALTER TABLE vouchers ADD COLUMN postdated INTEGER NOT NULL DEFAULT 0`)
 	if _, err := db.Exec(schema + mastersSchema + summarySchema + mapSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("creating schema: %w", err)
@@ -254,9 +258,9 @@ func (s *DB) BeginVouchers() (*VoucherTx, error) {
 	}
 	t := &VoucherTx{tx: tx}
 	if t.del, err = tx.Prepare(`DELETE FROM vlines WHERE voucher_guid=?`); err == nil {
-		if t.v, err = tx.Prepare(`INSERT INTO vouchers VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(guid) DO UPDATE SET
+		if t.v, err = tx.Prepare(`INSERT INTO vouchers VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(guid) DO UPDATE SET
 		  date=excluded.date,type=excluded.type,number=excluded.number,party=excluded.party,reference=excluded.reference,
-		  narration=excluded.narration,cancelled=excluded.cancelled,optional=excluded.optional,alter_id=excluded.alter_id,master_id=excluded.master_id`); err == nil {
+		  narration=excluded.narration,cancelled=excluded.cancelled,optional=excluded.optional,alter_id=excluded.alter_id,master_id=excluded.master_id,postdated=excluded.postdated`); err == nil {
 			t.ln, err = tx.Prepare(`INSERT INTO vlines VALUES(?,?,?,?)`)
 		}
 	}
@@ -283,7 +287,7 @@ func (t *VoucherTx) Put(v tally.Voucher) error {
 		return err
 	}
 	if _, err := t.v.Exec(v.GUID, v.Date.Format(time.DateOnly), v.Type, v.Number, v.Party, v.Reference, v.Narration,
-		b2i(v.Cancelled), b2i(v.Optional), v.AlterID, v.MasterID); err != nil {
+		b2i(v.Cancelled), b2i(v.Optional), v.AlterID, v.MasterID, b2i(v.PostDated)); err != nil {
 		return err
 	}
 	for i, l := range v.Lines {

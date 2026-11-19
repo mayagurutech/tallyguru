@@ -9,7 +9,8 @@ says what to do.
 | "No company is open" | Open the company in TallyPrime (Alt+F3). |
 | The AI app shows no Tally tools | Connect it in **AI app**, then fully quit the AI app (tray icon > Quit) and reopen it. After changing Features, restart it again. |
 | "No authorisation" | Record it in **Add a company** (each financial year). |
-| Trial balance does not match | Click **Full re-check**. If it still differs, the books changed during the sync, or Tally has a problem (try Tally's own data repair after a backup), and the answers carry a warning meanwhile. |
+| Trial balance does not match | The sync checks itself first: it traces the differing ledgers month by month in Tally and reads those months again. If it still differs, the company card names the month, the difference and the likely voucher, and an Excel file "TB difference" lists them all. Answers stay blocked until it ties. Click **Full re-check** after correcting anything in Tally. |
+| Checking many clients at once | Open every client in TallyPrime and run `tallyguru doctor -tb`. It checks each authorised company and prints counts only (no names or amounts), safe to share when asking for help. |
 | Sync is slow | The first sync reads every month once; later syncs read only changes. For very large companies run it from a Command Prompt with `-weekly`. Tally stays usable meanwhile. |
 | "Writing to ... refused" | Only TEST MCP is writable by default. For a real client, type **ALLOW WRITES** in its **Drafts and writes** and restart the AI app. |
 | "Windows protected your PC" when installing | The program isn't code-signed yet. Click **More info > Run anyway**. |

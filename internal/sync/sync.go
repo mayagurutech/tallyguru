@@ -333,3 +333,24 @@ func FYEnd(t time.Time) time.Time {
 	}
 	return time.Date(y, time.March, 31, 0, 0, 0, 0, time.UTC)
 }
+
+// Refetch reads the given periods again from Tally in full (local vouchers of those dates are
+// dropped first), then matches names and rebuilds summaries. Used by the trial-balance self-heal.
+func (e *Engine) Refetch(ctx context.Context, ps []tally.Period) (fetched int, err error) {
+	company := e.DB.Label.Company
+	for _, p := range ps {
+		if _, err := e.DB.Exec(`DELETE FROM vouchers WHERE date BETWEEN ? AND ?`,
+			p.From.Format(time.DateOnly), p.To.Format(time.DateOnly)); err != nil {
+			return fetched, err
+		}
+		f, _, _, err := e.chunk(ctx, company, p)
+		if err != nil {
+			return fetched, fmt.Errorf("%s: %w", p.From.Format("Jan 2006"), err)
+		}
+		fetched += f
+	}
+	if _, err := e.DB.ResolveNames(); err != nil {
+		return fetched, err
+	}
+	return fetched, e.DB.RebuildSummaries()
+}

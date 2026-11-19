@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/mayagurutech/tallyguru/internal/auth"
+	"github.com/mayagurutech/tallyguru/internal/config"
 	"github.com/mayagurutech/tallyguru/internal/crypt"
 	"github.com/mayagurutech/tallyguru/internal/store"
 	"github.com/mayagurutech/tallyguru/internal/sync"
 	"github.com/mayagurutech/tallyguru/internal/tally"
 	"github.com/mayagurutech/tallyguru/internal/tbcheck"
+	"github.com/mayagurutech/tallyguru/internal/tbheal"
 )
 
 // Job describes one sync request.
@@ -32,6 +34,7 @@ type Result struct {
 	Mode  string
 	Stats sync.Stats
 	TB    tbcheck.Result
+	Heal  tbheal.Result
 }
 
 func (r Result) String() string {
@@ -114,9 +117,29 @@ func Run(ctx context.Context, c *tally.Client, j Job) (Result, error) {
 		return res, fmt.Errorf("trial-balance check: %w", err)
 	}
 	if !res.TB.OK() {
+		// Self-heal: trace the differing ledgers month by month in Tally, read those months again.
+		from, _ := time.Parse(time.DateOnly, mustMeta(db, "books_from"))
+		cfg, _ := config.Load(j.Root)
+		h, herr := tbheal.Run(ctx, e, res.TB, from, sync.FYEnd(time.Now()), cfg.ExportBase(), say)
+		res.Heal = h
+		if herr != nil {
+			say("Self-check stopped: " + herr.Error())
+		} else {
+			res.TB = h.TB
+			if !h.TB.OK() {
+				db.SetMeta("tb_detail", h.String()+h.TB.String()) // shown by the panel and every blocked answer
+			}
+		}
+	}
+	if !res.TB.OK() {
 		// Next sync must not take the "unchanged" shortcut.
 		db.SetMeta("alt_vch_id", "0")
 		return res, fmt.Errorf("trial balance mismatch")
 	}
 	return res, nil
+}
+
+func mustMeta(db *store.DB, k string) string {
+	v, _ := db.Meta(k)
+	return v
 }

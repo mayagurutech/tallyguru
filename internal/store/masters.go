@@ -13,9 +13,11 @@ CREATE TABLE IF NOT EXISTS group_anc (name TEXT NOT NULL, ancestor TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS vtypes (name TEXT PRIMARY KEY, parent TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS vtype_base (name TEXT PRIMARY KEY, base TEXT NOT NULL);
 DROP VIEW IF EXISTS acct_vouchers;
--- Vouchers that affect the books. Excludes optional vouchers and voucher types Tally keeps
--- outside the accounts (found on a real pilot: 14 Delivery Notes broke the trial balance).
-CREATE VIEW acct_vouchers AS SELECT * FROM vouchers WHERE optional = 0 AND type NOT IN (
+-- Vouchers that affect the books. Excludes optional vouchers, post-dated vouchers until their
+-- date (Tally keeps them out of balances till then), and voucher types Tally keeps outside the
+-- accounts (found on a real pilot: 14 Delivery Notes broke the trial balance).
+CREATE VIEW acct_vouchers AS SELECT * FROM vouchers WHERE optional = 0
+  AND NOT (postdated = 1 AND date > date('now', 'localtime')) AND type NOT IN (
   SELECT name FROM vtype_base WHERE base IN ('Delivery Note','Receipt Note','Sales Order',
   'Purchase Order','Rejections In','Rejections Out','Memorandum','Reversing Journal',
   'Physical Stock','Job Work In Order','Job Work Out Order','Material In','Material Out'));

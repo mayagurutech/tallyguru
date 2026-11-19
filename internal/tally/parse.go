@@ -7,14 +7,28 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Paise is an amount in paise. Tally sign convention kept: negative = debit.
 type Paise int64
 
+// Foreign-currency lines read "-$100.00 @ ₹83.00/$ = -₹8,300.00": the rupee figure after "=" is used.
 // ParseAmount converts a Tally amount string ("-1,234.50", "1234.5", "") to paise exactly.
 func ParseAmount(s string) (Paise, error) {
-	s = strings.TrimSpace(strings.ReplaceAll(s, ",", ""))
+	orig := s
+	if _, after, ok := strings.Cut(s, "="); ok {
+		s = after
+	}
+	s = strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Sc, r) || unicode.IsSpace(r) || r == ',' {
+			return -1 // currency symbols (₹, $, €), spaces, commas
+		}
+		return r
+	}, s)
+	if strings.ContainsAny(orig, "@") && !strings.Contains(orig, "=") {
+		return 0, fmt.Errorf("foreign-currency amount without a rupee value: %q", orig)
+	}
 	if s == "" {
 		return 0, nil
 	}
@@ -95,7 +109,7 @@ type Voucher struct {
 	GUID, Type, Number, Party, Reference, Narration string
 	Date                                            time.Time
 	AlterID, MasterID                               int64
-	Cancelled, Optional                             bool
+	Cancelled, Optional, PostDated                  bool
 	Lines                                           []LedgerLine
 }
 
@@ -265,6 +279,7 @@ type xVoucher struct {
 	Narration string  `xml:"NARRATION"`
 	Cancelled string  `xml:"ISCANCELLED"`
 	Optional  string  `xml:"ISOPTIONAL"`
+	PostDated string  `xml:"ISPOSTDATED"`
 	Lines     []xLine `xml:"ALLLEDGERENTRIES.LIST"`
 	Lines2    []xLine `xml:"LEDGERENTRIES.LIST"`
 }
@@ -278,7 +293,7 @@ func ParseVouchers(r io.Reader, fn func(Voucher) error) error {
 		}
 		v := Voucher{GUID: strings.TrimSpace(x.GUID), Type: x.Type, Number: x.Number, Party: x.Party,
 			Reference: x.Reference, Narration: x.Narration, Date: dt, AlterID: x.AlterID,
-			MasterID: x.MasterID, Cancelled: yes(x.Cancelled), Optional: yes(x.Optional)}
+			MasterID: x.MasterID, Cancelled: yes(x.Cancelled), Optional: yes(x.Optional), PostDated: yes(x.PostDated)}
 		for _, l := range append(x.Lines, x.Lines2...) {
 			a, err := ParseAmount(l.Amount)
 			if err != nil {
