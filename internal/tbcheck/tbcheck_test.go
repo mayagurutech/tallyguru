@@ -99,3 +99,38 @@ func TestRs(t *testing.T) {
 		}
 	}
 }
+
+// A voucher line written differently from the ledger ("Swiss Pac Pvt. Ltd" vs "SWISS PAC PVT LTD")
+// is the same ledger to Tally; after ResolveNames it must match, and a Stock-in-Hand ledger whose
+// Tally closing is the inventory valuation must not count as a mismatch.
+func TestNameVariantsAndStock(t *testing.T) {
+	db, err := store.Open(t.TempDir(), store.Label{Company: "TEST MCP", Source: store.Live})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	db.ReplaceLedgers([]tally.Ledger{
+		{Name: "Swiss Pac Pvt. Ltd", GUID: "1", Parent: "Sundry Creditors", Closing: 50000},
+		{Name: "Purchase", GUID: "2", Parent: "Purchase Accounts", Closing: -50000},
+		{Name: "Stocks", GUID: "3", Parent: "Stock-in-Hand", Opening: -10000, Closing: -3000000},
+		{Name: "Capital", GUID: "4", Parent: "Capital Account", Opening: 10000, Closing: 10000},
+	})
+	tx, _ := db.BeginVouchers()
+	tx.Put(tally.Voucher{GUID: "v1", Date: time.Now(), Party: "SWISS PAC  PVT LTD", Lines: []tally.LedgerLine{{Ledger: "Purchase", Amount: -50000}, {Ledger: "SWISS PAC  PVT LTD", Amount: 50000}}})
+	tx.Commit()
+	if r, _ := Run(db); r.OK() || len(r.Unknown) != 1 {
+		t.Fatalf("before resolving, the variant must be unknown: %+v", r)
+	}
+	if n, err := db.ResolveNames(); err != nil || n != 1 {
+		t.Fatalf("resolve: %d %v", n, err)
+	}
+	r, _ := Run(db)
+	if !r.OK() || len(r.Stock) != 1 {
+		t.Fatalf("expected a match with Stocks skipped:\n%s %+v", r, r.Stock)
+	}
+	var party string
+	db.QueryRow(`SELECT party FROM vouchers WHERE guid = 'v1'`).Scan(&party)
+	if party != "Swiss Pac Pvt. Ltd" {
+		t.Errorf("party not resolved: %q", party)
+	}
+}

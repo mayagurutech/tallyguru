@@ -4,6 +4,9 @@
 // opening + all voucher lines in the local DB (optional vouchers excluded; cancelled
 // vouchers carry no lines). The local books must also total exactly zero.
 //
+// Stock-in-Hand ledgers are skipped per ledger too: with inventory, Tally reports their closing as
+// the stock valuation (computed from items), not opening plus entries.
+//
 // "Profit & Loss A/c" is skipped per ledger: Tally reports its closing including the
 // current period's profit (computed, not posted). It is still covered by the zero-total
 // check, because every other ledger matching forces its posted lines to match too.
@@ -32,6 +35,7 @@ type Result struct {
 	Mismatches []Mismatch
 	Unknown    []string // ledger names used in vouchers but missing from the ledger list
 	BooksTotal int64    // must be 0
+	Stock      []Mismatch // Stock-in-Hand ledgers: Tally shows the inventory valuation, not checked
 }
 
 // OK reports whether answers may be given.
@@ -61,7 +65,11 @@ func Rs(p int64) string {
 
 func (r Result) String() string {
 	if r.OK() {
-		return fmt.Sprintf("Trial balance matches Tally: %d ledgers, books total 0.00", r.Ledgers)
+		s := fmt.Sprintf("Trial balance matches Tally: %d ledgers, books total 0.00", r.Ledgers)
+		if len(r.Stock) > 0 {
+			s += fmt.Sprintf(" (%d Stock-in-Hand ledgers show Tally's stock valuation and are not compared)", len(r.Stock))
+		}
+		return s
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "WARNING: local data does NOT match Tally (%d of %d ledgers differ", len(r.Mismatches), r.Ledgers)
@@ -86,7 +94,8 @@ func (r Result) String() string {
 func Run(db *store.DB) (Result, error) {
 	var r Result
 	rows, err := db.Query(`
-		SELECT l.name, l.closing, l.opening + COALESCE(m.total, 0)
+		SELECT l.name, l.closing, l.opening + COALESCE(m.total, 0),
+		       EXISTS(SELECT 1 FROM group_anc a WHERE a.name = l.parent AND a.ancestor = 'Stock-in-Hand') OR l.parent = 'Stock-in-Hand'
 		FROM ledgers l
 		LEFT JOIN (SELECT vl.ledger, SUM(vl.amount) total
 		           FROM vlines vl JOIN acct_vouchers v ON v.guid = vl.voucher_guid
@@ -98,12 +107,17 @@ func Run(db *store.DB) (Result, error) {
 	for rows.Next() {
 		var name string
 		var tallyBal, ours int64
-		if err := rows.Scan(&name, &tallyBal, &ours); err != nil {
+		var stock bool
+		if err := rows.Scan(&name, &tallyBal, &ours, &stock); err != nil {
 			rows.Close()
 			return r, err
 		}
 		r.Ledgers++
 		r.BooksTotal += ours
+		if stock {
+			r.Stock = append(r.Stock, Mismatch{name, tallyBal, ours})
+			continue
+		}
 		if name != PLLedger && tallyBal != ours {
 			r.Mismatches = append(r.Mismatches, Mismatch{name, tallyBal, ours})
 		}

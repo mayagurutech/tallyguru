@@ -227,6 +227,11 @@ func (e *Engine) Run(ctx context.Context, o Options) (Stats, error) {
 		say("%s: %d fetched, %d deleted (RAM peak %.1f MB)", p.From.Format("Jan 2006")+weekSuffix(o.Weekly, p), f, d, peak)
 	}
 	t0 := time.Now()
+	if n, err := e.DB.ResolveNames(); err != nil {
+		return st, fmt.Errorf("ledger names: %w", err)
+	} else if n > 0 {
+		say("%d ledger names in vouchers written differently from the ledger (case, spaces or dots) matched to the ledger", n)
+	}
 	if err := e.DB.RebuildSummaries(); err != nil {
 		return st, fmt.Errorf("summaries: %w", err)
 	}
