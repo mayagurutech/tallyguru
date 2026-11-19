@@ -48,6 +48,8 @@ Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "TALLYGURU_DA
 [Icons]
 Name: "{group}\Tally MCP control panel"; Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Comment: "Set up and manage Tally MCP by Guru"
 Name: "{group}\Uninstall Tally MCP by Guru"; Filename: "{uninstallexe}"
+; Also on the desktop: Windows search does not always find a new Start-menu entry at once.
+Name: "{userdesktop}\Tally MCP control panel"; Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Comment: "Set up and manage Tally MCP by Guru"
 
 [Run]
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Description: "Open the control panel now"; Flags: postinstall nowait skipifsilent
