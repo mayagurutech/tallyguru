@@ -46,7 +46,12 @@ func Handler(root, version string, cfg config.Config, c *tally.Client, tok strin
 		}
 		w.Header().Set("Content-Type", "application/json")
 		cur, _ := config.Load(root) // settings may have changed in this page
-		json.NewEncoder(w).Encode(Collect(r.Context(), root, version, cur, tally.NewClient(cur.Host, cur.Port), time.Now()))
+		b, err := json.Marshal(Collect(r.Context(), root, version, cur, tally.NewClient(cur.Host, cur.Port), time.Now()))
+		if err != nil {
+			http.Error(w, "status: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(b)
 	})
 	mux.HandleFunc("/settings", func(w http.ResponseWriter, r *http.Request) {
 		if !ok(r) {

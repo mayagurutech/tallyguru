@@ -93,7 +93,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const call=(p,q)=>fetch(p+'?t='+T+(q?'&'+new URLSearchParams(q):''),{method:'POST'});
 async function load(){
  let s;
- try{s=await (await fetch('/data?t='+T)).json()}catch(e){$('when').textContent='Could not load status.';return}
+ try{const r=await fetch('/data?t='+T);if(!r.ok)throw new Error((await r.text())||('HTTP '+r.status));s=await r.json()}catch(e){$('when').textContent='Could not load status: '+e.message+' (click Refresh; if it stays, run tallyguru doctor)';return}
  $('when').textContent='Version '+s.Version+' · checked '+s.Checked+(s.ReadOnly?' · read-only':'');
  const c=s.Tally;
  $('conn').innerHTML=`<div class="row ${c.Reachable?'ok':'bad'}"><span class="dot"></span><b>TallyPrime ${c.Reachable?'connected':'not connected'}</b><span class="sub">${esc(c.URL)}</span></div>`+

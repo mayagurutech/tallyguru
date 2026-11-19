@@ -6,6 +6,7 @@ package statuspage
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -98,7 +99,7 @@ func Collect(ctx context.Context, root, version string, cfg config.Config, c *ta
 	box, _ := crypt.LoadOrCreate(root)
 	ls, _ := store.List(root)
 	for _, l := range ls {
-		s.Companies = append(s.Companies, company(root, l, box, now))
+		s.Companies = append(s.Companies, safeCompany(root, l, box, now))
 	}
 	s.Exports = recentExports(s.ExportDir, 10)
 	return s
@@ -199,4 +200,16 @@ func recentExports(base string, n int) []Export {
 // exportFolder is the folder of one company's exports (for "open folder").
 func exportFolder(cfg config.Config, company string) string {
 	return filepath.Join(cfg.ExportBase(), tools.SafeName(company))
+}
+
+// safeCompany keeps one company's problem from breaking the whole panel: it is shown on that
+// company's card instead.
+func safeCompany(root string, l store.Label, box *crypt.Box, now time.Time) (c Company) {
+	defer func() {
+		if p := recover(); p != nil {
+			c = Company{Name: l.Company, GSTIN: l.GSTIN, Source: string(l.Source), TB: "error",
+				TBDetail: fmt.Sprintf("Could not read this company's status: %v", p)}
+		}
+	}()
+	return company(root, l, box, now)
 }
