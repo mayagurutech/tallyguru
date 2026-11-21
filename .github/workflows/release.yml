@@ -47,7 +47,7 @@ jobs:
           & C:\inno\ISCC.exe "/DAppVersion=$ver" packaging\tallyguru.iss
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Copy-Item "dist\TallyMCP-Setup-$ver.exe" dist\TallyMCP-Setup.exe
-          Get-FileHash dist\TallyMCP-Setup.exe, dist\tallyguru.exe -Algorithm SHA256 |
+          Get-FileHash dist\TallyMCP-Setup.exe -Algorithm SHA256 |
             ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
             Set-Content dist\SHA256SUMS.txt
           "VER=$ver" >> $env:GITHUB_ENV
@@ -69,5 +69,6 @@ jobs:
         run: |
           $extra = @()
           if ("${{ github.ref_name }}" -like '*-*') { $extra += '--prerelease' }
-          gh release create "${{ github.ref_name }}" dist/TallyMCP-Setup.exe dist/tallyguru.exe dist/SHA256SUMS.txt `
+          # Only the installer is published (author, 21 Nov 2026): one file to download.
+          gh release create "${{ github.ref_name }}" dist/TallyMCP-Setup.exe dist/SHA256SUMS.txt `
             --title "Tally MCP by Guru ${{ env.VER }}" --generate-notes @extra
