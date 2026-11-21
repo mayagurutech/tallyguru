@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 )
@@ -82,5 +83,57 @@ func TestHandshakeListCall(t *testing.T) {
 	}
 	if r[5]["error"].(map[string]any)["code"].(float64) != -32601 || r[6]["error"].(map[string]any)["code"].(float64) != -32700 {
 		t.Error("bad error codes")
+	}
+}
+
+// A tool asks the user through the AI app (elicitation) and gets the answer while Serve keeps
+// reading; without the client capability it gets ErrNoElicit.
+func TestElicit(t *testing.T) {
+	s := &Server{Name: "t", Version: "1"}
+	var got Elicitation
+	var gotErr error
+	s.Add(Tool{Name: "ask", InputSchema: json.RawMessage(`{"type":"object"}`), Handler: func(map[string]any) (string, error) {
+		got, gotErr = s.Elicit("Type I AGREE", json.RawMessage(`{"type":"object","properties":{"typed":{"type":"string"}}}`))
+		return "done", gotErr
+	}})
+	inR, inW := io.Pipe()
+	outR, outW := io.Pipe()
+	go s.Serve(inR, outW)
+	dec := json.NewDecoder(outR)
+	send := func(l string) { inW.Write([]byte(l + "\n")) }
+	read := func() map[string]any {
+		var m map[string]any
+		if err := dec.Decode(&m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	send(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"elicitation":{}}}}`)
+	read()
+	send(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ask"}}`)
+	q := read()
+	if q["method"] != "elicitation/create" || !strings.Contains(q["params"].(map[string]any)["message"].(string), "I AGREE") {
+		t.Fatalf("expected an elicitation request, got %v", q)
+	}
+	id, _ := json.Marshal(q["id"])
+	send(`{"jsonrpc":"2.0","id":` + string(id) + `,"result":{"action":"accept","content":{"typed":"I AGREE"}}}`)
+	if r := read(); r["id"] != float64(2) {
+		t.Fatalf("tool reply: %v", r)
+	}
+	if gotErr != nil || got.Action != "accept" || got.Content["typed"] != "I AGREE" {
+		t.Fatalf("answer: %+v %v", got, gotErr)
+	}
+	inW.Close()
+
+	s2 := &Server{}
+	s2.Add(Tool{Name: "ask", Handler: func(map[string]any) (string, error) {
+		_, err := s2.Elicit("x", nil)
+		return "", err
+	}})
+	r := run(t, s2, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ask"}}`)
+	b, _ := json.Marshal(r[1])
+	if !strings.Contains(string(b), ErrNoElicit.Error()) {
+		t.Fatalf("without the capability: %s", b)
 	}
 }

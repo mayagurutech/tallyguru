@@ -170,3 +170,49 @@ func TestZeroNetUnknownIsANote(t *testing.T) {
 		t.Fatalf("non-zero unknown must block and name the voucher:\n%s", r)
 	}
 }
+
+// A client renamed the predefined Stock-in-Hand group: its closing-stock ledger (Tally shows the
+// closing value entered each 31 March, not opening + entries) must still be skipped, and other
+// checks must still see the group as Stock-in-Hand.
+func TestRenamedStockGroup(t *testing.T) {
+	db, err := store.Open(t.TempDir(), store.Label{Company: "TEST MCP", Source: store.Live})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	db.ReplaceGroups([]tally.Group{{Name: "Current Assets", Reserved: "Current Assets"},
+		{Name: "Closing Stock", Parent: "Current Assets", Reserved: "Stock-in-Hand"},
+		{Name: "Raw Material", Parent: "Closing Stock"},
+		{Name: "Capital Account", Reserved: "Capital Account"}})
+	db.ReplaceLedgers([]tally.Ledger{
+		{Name: "STOCK", GUID: "1", Parent: "Closing Stock", Opening: -100000, Closing: -900000},
+		{Name: "RM", GUID: "2", Parent: "Raw Material", Closing: -5000},
+		{Name: "Capital", GUID: "3", Parent: "Capital Account", Opening: 100000, Closing: 100000},
+	})
+	r, err := Run(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.OK() || len(r.Stock) != 2 {
+		t.Fatalf("renamed stock group must be skipped:\n%s %+v", r, r.Stock)
+	}
+	var pg string
+	db.QueryRow(`SELECT primary_group FROM group_primary WHERE name = 'Raw Material'`).Scan(&pg)
+	if pg != "Current Assets" {
+		t.Errorf("primary group: %q", pg)
+	}
+}
+
+// A mismatch line names the ledger's group.
+func TestMismatchShowsGroup(t *testing.T) {
+	db, err := store.Open(t.TempDir(), store.Label{Company: "TEST MCP", Source: store.Live})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	db.ReplaceLedgers([]tally.Ledger{{Name: "Rent", GUID: "1", Parent: "Indirect Expenses", Closing: -100}})
+	r, _ := Run(db)
+	if r.OK() || !strings.Contains(r.String(), "(group Indirect Expenses)") {
+		t.Fatalf("got:\n%s", r)
+	}
+}

@@ -30,6 +30,8 @@ func buildServer(root string) (*mcp.Server, error) {
 	env := &tools.Env{Root: root, Cfg: cfg, Box: box, Now: time.Now, Tally: tally.NewClient(cfg.Host, cfg.Port)}
 	s := &mcp.Server{Name: "tally-mcp-by-guru", Version: version,
 		Instructions: i18n.T(i18n.Of(cfg.Language), "ai_instructions")}
+	env.Ask = s.Elicit // the authorisation form goes to the user, not the AI
+	env.OpenPanel = func() error { return startDetached("-data", root, "-here", "ui") }
 	if !cfg.NoMask {
 		s.Filter = mask.Text // PAN, Aadhaar, mobile, bank a/c masked in every answer
 	}

@@ -51,9 +51,17 @@ Name: "{group}\Uninstall Tally MCP by Guru"; Filename: "{uninstallexe}"
 ; Also on the desktop: Windows search does not always find a new Start-menu entry at once.
 Name: "{userdesktop}\Tally MCP control panel"; Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Comment: "Set up and manage Tally MCP by Guru"
 
+[Tasks]
+Name: "connectai"; Description: "Connect my AI app (Claude Desktop and Claude Code, if found). Their old settings files are kept as copies."
+
 [Run]
-Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Description: "Open the control panel now"; Flags: postinstall nowait skipifsilent
+; Setup is finished from the AI app's chat: connect the AI app here, then the user asks it to connect a company.
+Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" connect"; StatusMsg: "Connecting your AI app..."; Flags: runhidden waituntilterminated; Tasks: connectai
+Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Description: "Also open the control panel (settings; optional)"; Flags: postinstall nowait skipifsilent unchecked
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Flags: nowait; Check: WizardSilent
+
+[Messages]
+FinishedLabel=Tally MCP by Guru is installed.%n%nNext:%n1. In TallyPrime, open the company you want.%n2. Quit Claude fully (tray icon > Quit) and open it again.%n3. Ask Claude: Connect my Tally company.%n%nThe control panel (Start menu) is only needed for settings.
 
 [Code]
 // Uninstall removes the program. Client data (books, authorisation records, rules) is deleted

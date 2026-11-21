@@ -88,12 +88,13 @@ select,input[type=text],input[type=number]{font:inherit;font-size:13px;padding:4
 </main>
 <script>
 const T=new URLSearchParams(location.search).get('t');
+setInterval(()=>fetch('/ping').catch(()=>{}),60000); // keeps the panel running while this page is open
 const $=id=>document.getElementById(id);
 // If the panel program has stopped (its window was closed), every request fails: say so plainly
 // instead of leaving a button on "Checking…".
 const _fetch=window.fetch.bind(window);
 window.fetch=async(...a)=>{try{return await _fetch(...a)}catch(e){gone();throw e}};
-function gone(){if($('gone'))return;const d=document.createElement('div');d.id='gone';d.className='card';d.style.cssText='border:2px solid #d33;margin:12px auto;max-width:1060px';d.innerHTML='<b>The control panel has stopped.</b> Its program window was closed, or the update restarted it. Close this tab and open the panel again from the Start menu: <b>Tally MCP control panel</b>. Your data is safe.';document.body.prepend(d);document.querySelectorAll('.msg').forEach(m=>{if(/…$/.test(m.textContent))m.textContent=''})}
+function gone(){if($('gone'))return;const d=document.createElement('div');d.id='gone';d.className='card';d.style.cssText='border:2px solid #d33;margin:12px auto;max-width:1060px';d.innerHTML='<b>The control panel has stopped.</b> It stops by itself when no page was open for a while, or the update restarted it. Close this tab and open the panel again from the Start menu: <b>Tally MCP control panel</b>. Your data is safe.';document.body.prepend(d);document.querySelectorAll('.msg').forEach(m=>{if(/…$/.test(m.textContent))m.textContent=''})}
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const call=(p,q)=>fetch(p+'?t='+T+(q?'&'+new URLSearchParams(q):''),{method:'POST'});
 async function load(){

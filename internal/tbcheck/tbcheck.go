@@ -26,7 +26,8 @@ const PLLedger = "Profit & Loss A/c"
 // Mismatch is one ledger that differs.
 type Mismatch struct {
 	Ledger      string
-	Tally, Ours int64 // paise, Tally sign (negative = debit)
+	Tally, Ours int64  // paise, Tally sign (negative = debit)
+	Group       string // the ledger's group, shown so the user can see why it differs
 }
 
 // Result of a check.
@@ -87,7 +88,11 @@ func (r Result) String() string {
 			fmt.Fprintf(&b, "  ... and %d more\n", len(r.Mismatches)-10)
 			break
 		}
-		fmt.Fprintf(&b, "  %-30s Tally %18s  local %18s\n", m.Ledger, Rs(m.Tally), Rs(m.Ours))
+		fmt.Fprintf(&b, "  %-30s Tally %18s  local %18s", m.Ledger, Rs(m.Tally), Rs(m.Ours))
+		if m.Group != "" {
+			fmt.Fprintf(&b, "  (group %s)", m.Group)
+		}
+		b.WriteString("\n")
 	}
 	for i, u := range r.Unknown {
 		if i == 10 {
@@ -103,7 +108,7 @@ func (r Result) String() string {
 func Run(db *store.DB) (Result, error) {
 	var r Result
 	rows, err := db.Query(`
-		SELECT l.name, l.closing, l.opening + COALESCE(m.total, 0),
+		SELECT l.name, l.parent, l.closing, l.opening + COALESCE(m.total, 0),
 		       EXISTS(SELECT 1 FROM group_anc a WHERE a.name = l.parent AND a.ancestor = 'Stock-in-Hand') OR l.parent = 'Stock-in-Hand'
 		FROM ledgers l
 		LEFT JOIN (SELECT vl.ledger, SUM(vl.amount) total
@@ -114,21 +119,21 @@ func Run(db *store.DB) (Result, error) {
 		return r, err
 	}
 	for rows.Next() {
-		var name string
+		var name, group string
 		var tallyBal, ours int64
 		var stock bool
-		if err := rows.Scan(&name, &tallyBal, &ours, &stock); err != nil {
+		if err := rows.Scan(&name, &group, &tallyBal, &ours, &stock); err != nil {
 			rows.Close()
 			return r, err
 		}
 		r.Ledgers++
 		r.BooksTotal += ours
 		if stock {
-			r.Stock = append(r.Stock, Mismatch{name, tallyBal, ours})
+			r.Stock = append(r.Stock, Mismatch{name, tallyBal, ours, group})
 			continue
 		}
 		if name != PLLedger && tallyBal != ours {
-			r.Mismatches = append(r.Mismatches, Mismatch{name, tallyBal, ours})
+			r.Mismatches = append(r.Mismatches, Mismatch{name, tallyBal, ours, group})
 		}
 	}
 	rows.Close()

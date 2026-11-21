@@ -26,6 +26,10 @@ type Env struct {
 	Box   *crypt.Box
 	Now   func() time.Time
 	Tally *tally.Client // nil: never contact Tally (tests, backups)
+	// Ask shows the user a form through the AI app (MCP elicitation); nil or mcp.ErrNoElicit:
+	// the app cannot, and OpenPanel (if set) opens the control panel instead.
+	Ask       func(message string, schema json.RawMessage) (mcp.Elicitation, error)
+	OpenPanel func() error
 
 	checked map[string]time.Time // last quick check per company folder
 	note    string               // appended to the current answer (e.g. stale data)
@@ -46,6 +50,10 @@ func (e *Env) refresh(l store.Label) {
 	}
 	k := l.Dir(e.Root)
 	if time.Since(e.checked[k]) < RefreshEvery {
+		return
+	}
+	if bg.busy() { // never wait behind a long first sync
+		e.note = "Note: a sync is running in the background; figures are as of the last finished sync."
 		return
 	}
 	e.checked[k] = time.Now()
@@ -85,11 +93,19 @@ func (e *Env) syncNow(a map[string]any) (string, error) {
 			l = &ls[i]
 		}
 	}
-	if l == nil {
-		return "", fmt.Errorf("say which live company to sync")
-	}
 	if e.Tally == nil {
 		return "", fmt.Errorf("syncing is not available here")
+	}
+	// Not set up here yet, or its authorisation is due again (new financial year): the
+	// connect flow (Tally check, the user's own authorisation, first sync in the background).
+	if l == nil {
+		return e.companyConnect(a)
+	}
+	if _, err := (auth.Store{Dir: l.Dir(e.Root), Box: e.Box}).Valid(l.Company, e.Now()); err != nil {
+		return e.companyConnect(map[string]any{"company": l.Company})
+	}
+	if running, text := bg.view(""); running {
+		return text + "\nIt is already syncing; ask sync_status later.", nil
 	}
 	full, _ := a["full"].(bool)
 	t0 := time.Now()
@@ -123,7 +139,7 @@ func Core(e *Env) []mcp.Tool {
 
 func (e *Env) core() []mcp.Tool {
 	return []mcp.Tool{
-		{Name: "sync_now", Description: "Refresh a live company from Tally now (only what changed).",
+		{Name: "sync_now", Description: "Sync from Tally; connects new companies (no name: list them).",
 			InputSchema: schema(`"full":{"type":"boolean","description":"Full re-check of all months"}`), Handler: e.syncNow},
 		{Name: "company_list", Description: "List synced companies with source, last sync and check status.",
 			InputSchema: json.RawMessage(`{"type":"object","properties":{}}`), Handler: e.companyList},
@@ -225,8 +241,15 @@ func (e *Env) companyList(map[string]any) (string, error) {
 }
 
 func (e *Env) syncStatus(a map[string]any) (string, error) {
+	running, bgText := bg.view("")
+	if running {
+		return bgText, nil
+	}
 	db, err := e.open(a, false)
 	if err != nil {
+		if bgText != "" {
+			return bgText, nil
+		}
 		return "", err
 	}
 	defer db.Close()

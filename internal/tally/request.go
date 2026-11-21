@@ -107,7 +107,7 @@ func VoucherRequest(company string, from, to time.Time, sinceAlterID int64) Coll
 // GroupRequest lists account groups (small; always full).
 func GroupRequest(company string) CollectionRequest {
 	return CollectionRequest{ID: "GuruGroups", Type: "Group", Company: company,
-		Fetch: []string{"Name", "Parent", "IsRevenue", "AffectsGrossProfit"}}
+		Fetch: []string{"Name", "Parent", "IsRevenue", "AffectsGrossProfit", "ReservedName"}}
 }
 
 // VoucherTypeRequest lists voucher types with their base type.

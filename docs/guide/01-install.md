@@ -3,45 +3,49 @@
 You need Windows 10 or 11, TallyPrime, and an AI app that supports MCP (for example Claude
 Desktop or Claude Code). The tool works on a 4 GB PC.
 
-## Install
+## Install (three steps)
 
 1. Run `TallyMCP-Setup-0.1.0.exe`. It does not ask for admin rights.
    - Windows may say "Windows protected your PC" (the program is not code-signed yet). Click
      **More info**, then **Run anyway**.
-2. Read the licence and the "please read" page, then click **Next** and **Install**.
-3. Leave **Open the control panel now** ticked and click **Finish**.
+   - Read the licence and the "please read" page. Leave **Connect my AI app** ticked: setup adds
+     the tool to Claude Desktop and Claude Code if they are on this PC, and keeps their old
+     settings files as copies.
+2. **Fully quit** your AI app and open it again (Claude Desktop: tray icon > Quit). AI apps load
+   tools only when they start.
+3. Open the company in TallyPrime, then ask the AI app: **Connect my Tally company**.
 
-The control panel opens in your browser. It runs only on this PC and only while open. Open it
-again later from the Start menu: **Tally MCP control panel**.
+The AI app checks TallyPrime, shows you the data-protection notice and asks you to type
+**I AGREE** (see [2. Your first company](02-first-company.md)), then starts the first sync. You
+can ask questions as soon as it finishes.
 
-## First screen
+## If TallyPrime does not answer
 
-Read the disclaimer and the data-protection notice, choose your language and your role (Owner,
-Accountant or Auditor), tick **I have read the above and agree**, and click **Continue**.
-
-## Turn on Tally's connection
-
-In TallyPrime: **F1 (Help) > Settings > Connectivity**.
+The AI app tells you what to change. In TallyPrime: **F1 (Help) > Settings > Connectivity**.
 - **TallyPrime acts as:** Server (or Both).
 - **Port:** 9000.
 
-Restart TallyPrime if it asks. In the control panel's **Connection** section, click **Check
-again**: "TallyPrime on localhost:9000" should turn green.
+Restart TallyPrime if it asks, then ask the AI app again.
 
-## Connect your AI app
+## Other AI apps
 
-In the **AI app** section:
-- **Claude Desktop:** click **Show the change first** if you want to see it, then **Connect Claude
-  Desktop** and **Yes, write it**. The old settings file is kept as a copy.
-- **Claude Code or another MCP app:** copy the command shown and run it (Claude Code), or add a
-  server with that command in your app's settings.
+If your AI app was not connected by setup, run this once in a Command Prompt, or add a server
+with the command `tallyguru.exe -data "%USERPROFILE%\TallyGuru" serve` in your app's settings:
 
-Then **fully quit** the AI app (for Claude Desktop: tray icon > Quit) and open it again. The tools
-appear in the AI app's tool list.
+```
+"%LOCALAPPDATA%\Programs\TallyGuru\tallyguru.exe" connect
+```
 
-## If something is red
+## The control panel (optional)
 
-Each red line in **Connection** says what to do. You can also run, in a Command Prompt:
+Start menu: **Tally MCP control panel**. It opens in your browser and is only needed for
+settings: features and role, ledger mapping, drafts, deleting a company's local data, updates.
+It runs in the background without a window and stops by itself when no panel page has been
+open for 30 minutes.
+
+## If something is wrong
+
+Run, in a Command Prompt:
 
 ```
 "%LOCALAPPDATA%\Programs\TallyGuru\tallyguru.exe" doctor

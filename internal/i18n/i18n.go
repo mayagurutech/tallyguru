@@ -84,8 +84,8 @@ Tally Solutions Pvt. Ltd. से संबद्ध या उनके द्�
 	"setup_saved":    {EN: "Saved %s. Modules loading now: %s", HI: "सहेजा गया: %s। अभी लोड होने वाले मॉड्यूल: %s"},
 	// Sent to the AI app at connection time when Hindi is chosen.
 	"ai_instructions": {
-		EN: "",
-		HI: "The user prefers Hindi. Reply in simple Hindi (Devanagari). Keep amounts, ledger names and party codes exactly as the tools return them.",
+		EN: "To connect or add a Tally company, call sync_now (with its name if given).",
+		HI: "To connect or add a Tally company, call sync_now (with its name if given). The user prefers Hindi. Reply in simple Hindi (Devanagari). Keep amounts, ledger names and party codes exactly as the tools return them.",
 	},
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 const mastersSchema = `
-CREATE TABLE IF NOT EXISTS groups (name TEXT PRIMARY KEY, parent TEXT NOT NULL, is_revenue INTEGER NOT NULL, affects_gp INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS groups (name TEXT PRIMARY KEY, parent TEXT NOT NULL, is_revenue INTEGER NOT NULL, affects_gp INTEGER NOT NULL, reserved TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS group_primary (name TEXT PRIMARY KEY, primary_group TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS group_anc (name TEXT NOT NULL, ancestor TEXT NOT NULL, PRIMARY KEY(name, ancestor));
 CREATE TABLE IF NOT EXISTS vtypes (name TEXT PRIMARY KEY, parent TEXT NOT NULL);
@@ -53,12 +53,14 @@ func replaceAll(db *sql.DB, del string, ins string, n int, row func(i int) []any
 	return tx.Commit()
 }
 
-// ReplaceGroups stores groups and recomputes each group's primary group.
+// ReplaceGroups stores groups and recomputes each group's primary group and ancestors.
+// A predefined group the user renamed counts under Tally's built-in name too, so every
+// "is X under Stock-in-Hand / Duties & Taxes / ..." check still works.
 func (s *DB) ReplaceGroups(gs []tally.Group) error {
-	return replaceAll(s.DB, `DELETE FROM groups`, `INSERT OR REPLACE INTO groups VALUES(?,?,?,?)`, len(gs),
+	return replaceAll(s.DB, `DELETE FROM groups`, `INSERT OR REPLACE INTO groups(name,parent,is_revenue,affects_gp,reserved) VALUES(?,?,?,?,?)`, len(gs),
 		func(i int) []any {
 			g := gs[i]
-			return []any{g.Name, g.Parent, b2i(g.IsRevenue), b2i(g.AffectsGrossProfit)}
+			return []any{g.Name, g.Parent, b2i(g.IsRevenue), b2i(g.AffectsGrossProfit), g.Reserved}
 		},
 		`DELETE FROM group_primary`,
 		`INSERT INTO group_primary
@@ -66,7 +68,8 @@ func (s *DB) ReplaceGroups(gs []tally.Group) error {
 		   SELECT name, name, 0 FROM groups WHERE parent = ''
 		   UNION ALL
 		   SELECT g.name, gp.primary_group, gp.depth+1 FROM groups g JOIN gp ON g.parent = gp.name WHERE gp.depth < 50)
-		 SELECT name, primary_group FROM gp`,
+		 SELECT gp.name, CASE WHEN g.reserved <> '' THEN g.reserved ELSE gp.primary_group END
+		 FROM gp JOIN groups g ON g.name = gp.primary_group`,
 		// Every group with each of its ancestors, itself included. Needed because
 		// e.g. Duties & Taxes sits under Current Liabilities and Sundry Debtors under
 		// Current Assets: "is X under Y?" must look at the whole chain.
@@ -77,7 +80,9 @@ func (s *DB) ReplaceGroups(gs []tally.Group) error {
 		   UNION ALL
 		   SELECT ga.name, g.parent, ga.depth+1 FROM ga JOIN groups g ON g.name = ga.ancestor
 		   WHERE g.parent <> '' AND ga.depth < 50)
-		 SELECT name, ancestor FROM ga`)
+		 SELECT name, ancestor FROM ga`,
+		`INSERT OR IGNORE INTO group_anc SELECT a.name, g.reserved FROM group_anc a
+		 JOIN groups g ON g.name = a.ancestor WHERE g.reserved <> '' AND g.reserved <> g.name`)
 }
 
 // ReplaceVoucherTypes stores voucher types and each one's base type.

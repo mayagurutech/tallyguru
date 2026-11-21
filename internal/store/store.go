@@ -110,6 +110,7 @@ func Open(root string, l Label) (*DB, error) {
 	}
 	// Columns added after a database was first created (ignored if already there).
 	db.Exec(`ALTER TABLE stock_items ADD COLUMN opening_value INTEGER NOT NULL DEFAULT 0`)
+	db.Exec(`ALTER TABLE groups ADD COLUMN reserved TEXT NOT NULL DEFAULT ''`)
 	s := &DB{DB: db, Label: l, Path: p}
 	for k, v := range map[string]string{"company": l.Company, "gstin": l.GSTIN, "source": string(l.Source)} {
 		if old, _ := s.Meta(k); old != "" && old != v {

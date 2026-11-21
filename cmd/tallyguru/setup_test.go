@@ -29,14 +29,15 @@ func TestSetupHindiThenServerInstructions(t *testing.T) {
 	}
 }
 
-func TestSetupEnglishNoInstructions(t *testing.T) {
+// English gets only the one-line connect hint (kept short: it is sent every session).
+func TestSetupEnglishInstructionsShort(t *testing.T) {
 	root := t.TempDir()
 	if err := setup(root, strings.NewReader("en\n1\n\nn\n\n")); err != nil {
 		t.Fatal(err)
 	}
 	s, _ := buildServer(root)
-	if s.Instructions != "" {
-		t.Errorf("English should send no instructions, got %q", s.Instructions)
+	if !strings.Contains(s.Instructions, "sync_now") || strings.Contains(s.Instructions, "Hindi") || len(s.Instructions) > 120 {
+		t.Errorf("English instructions: %q", s.Instructions)
 	}
 }
 

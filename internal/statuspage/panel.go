@@ -2,8 +2,6 @@ package statuspage
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +13,7 @@ import (
 
 	"github.com/mayagurutech/tallyguru/internal/config"
 	"github.com/mayagurutech/tallyguru/internal/i18n"
+	"github.com/mayagurutech/tallyguru/internal/onboard"
 	"github.com/mayagurutech/tallyguru/internal/tally"
 	"github.com/mayagurutech/tallyguru/internal/tools"
 )
@@ -47,12 +46,6 @@ type SetModule struct {
 	Tokens   int
 }
 
-// noticeHash fingerprints the texts the user agrees to, so a changed text asks again.
-func noticeHash() string {
-	h := sha256.Sum256([]byte(i18n.T(i18n.EN, "tool_disclaimer") + i18n.T(i18n.EN, "notice")))
-	return hex.EncodeToString(h[:6])
-}
-
 // LoadSettings reads the saved config for the panel.
 func LoadSettings(root string) (Settings, error) {
 	c, err := config.Load(root)
@@ -63,7 +56,7 @@ func LoadSettings(root string) (Settings, error) {
 	s := Settings{Agreed: c.Agreed, Disclaimer: i18n.T(L, "tool_disclaimer"), Notice: i18n.T(L, "notice"),
 		Language: c.Language, Profile: c.Profile, Profiles: config.Profiles, Names: config.ProfileNames,
 		ReadOnly: c.ReadOnly, PrivacyMode: c.PrivacyMode, Masking: !c.NoMask, Host: c.Host, Port: c.Port}
-	s.NeedAgree = !strings.HasSuffix(c.Agreed, noticeHash())
+	s.NeedAgree = onboard.NeedAgree(c)
 	tok := tools.ModuleTokens()
 	for _, m := range config.Modules {
 		on := c.Enabled(m.ID)
@@ -76,15 +69,8 @@ func LoadSettings(root string) (Settings, error) {
 	return s, nil
 }
 
-// Agree records acceptance of the disclaimer and DPDP notice (date + text fingerprint).
-func Agree(root string, now time.Time) error {
-	c, err := config.Load(root)
-	if err != nil {
-		return err
-	}
-	c.Agreed = now.Format("02-01-2006 15:04") + " " + noticeHash()
-	return c.Save(root)
-}
+// Agree records acceptance of the disclaimer and DPDP notice.
+var Agree = onboard.Agree
 
 // Change is a settings update from the panel. Nil fields stay as they are.
 type Change struct {

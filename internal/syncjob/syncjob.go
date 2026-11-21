@@ -134,7 +134,7 @@ func Run(ctx context.Context, c *tally.Client, j Job) (Result, error) {
 	if !res.TB.OK() {
 		// Next sync must not take the "unchanged" shortcut.
 		db.SetMeta("alt_vch_id", "0")
-		return res, fmt.Errorf("trial balance mismatch")
+		return res, fmt.Errorf("sync finished, but the books here do not yet match Tally (details above); answers for this company wait until they match")
 	}
 	return res, nil
 }

@@ -143,12 +143,13 @@ func TestParseGroupsTypesStock(t *testing.T) {
 	x := `<ENVELOPE><BODY><DESC><CMPINFO><GROUP>0</GROUP><STOCKITEM>0</STOCKITEM></CMPINFO></DESC><DATA><COLLECTION>
 <GROUP NAME="Sales Accounts"><PARENT>&#4; Primary</PARENT><ISREVENUE>Yes</ISREVENUE><AFFECTSGROSSPROFIT>Yes</AFFECTSGROSSPROFIT></GROUP>
 <GROUP NAME="Bank OD A/c"><PARENT>Loans (Liability)</PARENT></GROUP>
+<GROUP NAME="Closing Stock" RESERVEDNAME="Stock-in-Hand"><PARENT>Current Assets</PARENT></GROUP>
 <VOUCHERTYPE NAME="GST Sales"><PARENT>Sales</PARENT></VOUCHERTYPE>
 <STOCKITEM NAME="Steel Rod"><PARENT>Steel</PARENT><BASEUNITS>Kg</BASEUNITS><CLOSINGBALANCE> 120 Kg</CLOSINGBALANCE><CLOSINGVALUE>-6000.00</CLOSINGVALUE></STOCKITEM>
 </COLLECTION></DATA></BODY></ENVELOPE>`
 	var gs []Group
 	ParseGroups(NewSanitizer(strings.NewReader(x)), func(g Group) error { gs = append(gs, g); return nil })
-	if len(gs) != 2 || gs[0].Parent != "" || !gs[0].IsRevenue || gs[1].Parent != "Loans (Liability)" {
+	if len(gs) != 3 || gs[0].Parent != "" || !gs[0].IsRevenue || gs[1].Parent != "Loans (Liability)" || gs[2].Reserved != "Stock-in-Hand" {
 		t.Fatalf("groups: %+v", gs)
 	}
 	var vt []VoucherType

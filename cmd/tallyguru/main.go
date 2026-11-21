@@ -30,8 +30,12 @@ Usage: tallyguru [flags] <command>
 Commands:
   serve                run as an MCP server on stdio (what your AI app starts)
   setup                choose role profile and features
-  ui                   open the control panel in your browser (setup, connection, companies,
-                       mapping, features); this PC only
+  ui [-here]           open the control panel in your browser (setup, connection, companies,
+                       mapping, features); this PC only. Runs in the background and stops
+                       when unused; -here keeps it in this window
+  connect [-desktop] [-code]
+                       add this server to Claude Desktop and/or Claude Code (both if
+                       neither is given); old settings files are kept as copies
   doctor [-tb]         check Tally, the data folder and the AI app connection; -tb also
                        syncs every open, authorised company and checks its trial balance
                        (prints counts only, safe to share)
@@ -58,6 +62,9 @@ func main() {
 	full := flag.Bool("full", false, "force a full month-by-month sync (default: only what changed)")
 	tbAll := flag.Bool("tb", false, "doctor: also sync and check the trial balance of every open, authorised company (counts only)")
 	root := flag.String("data", store.DefaultRoot(), "local data folder")
+	toDesktop := flag.Bool("desktop", false, "connect: Claude Desktop")
+	toCode := flag.Bool("code", false, "connect: Claude Code")
+	here := flag.Bool("here", false, "ui: run the panel in this window instead of in the background")
 	flag.Usage = usage
 	if len(os.Args) > 1 && os.Args[1] != "authorise" && os.Args[1] != "authorize" {
 		os.Args = append(os.Args[:1], flagsFirst(os.Args[1:])...)
@@ -87,9 +94,17 @@ func main() {
 		}
 	case "serve":
 		err = runServe(*root)
+	case "connect":
+		err = runConnect(*root, *toDesktop, *toCode)
 	case "setup":
 		err = runSetup(*root)
 	case "ui":
+		if !*here { // no console window to keep open: the panel runs in the background
+			if err = startDetached("-data", *root, "-here", "ui"); err == nil {
+				fmt.Println("The control panel is opening in your browser.")
+			}
+			break
+		}
 		var cfg config.Config
 		if cfg, err = config.Load(*root); err == nil {
 			err = statuspage.Serve(*root, version, cfg, c, func(s string) { fmt.Println(s) })

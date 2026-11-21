@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/mayagurutech/tallyguru/internal/auth"
@@ -182,7 +183,12 @@ func openReview(root, company string, src store.Source, out func(string)) error 
 	return fmt.Errorf("%q is not synced", company)
 }
 
-// Serve opens the status page in the browser and blocks until Finish (or Ctrl+C).
+// IdleStop is how long the panel waits with no page open (the page pings every minute)
+// before it stops by itself, so a panel started without a window never lingers.
+var IdleStop = 30 * time.Minute
+
+// Serve opens the status page in the browser and blocks until Finish, Ctrl+C, or IdleStop
+// with no request from the page.
 func Serve(root, version string, cfg config.Config, c *tally.Client, out func(string)) error {
 	b := make([]byte, 16)
 	rand.Read(b)
@@ -192,12 +198,42 @@ func Serve(root, version string, cfg config.Config, c *tally.Client, out func(st
 		return err
 	}
 	done := make(chan struct{})
-	srv := &http.Server{Handler: Handler(root, version, cfg, c, tok, done, out), ReadHeaderTimeout: 10 * time.Second}
+	var seen atomic.Int64
+	seen.Store(time.Now().UnixNano())
+	h := Handler(root, version, cfg, c, tok, done, out)
+	srv := &http.Server{ReadHeaderTimeout: 10 * time.Second,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seen.Store(time.Now().UnixNano())
+			if r.URL.Path == "/ping" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			h.ServeHTTP(w, r)
+		})}
 	go srv.Serve(ln)
+	stop := make(chan struct{})
+	go func() {
+		t := time.NewTicker(time.Minute)
+		defer t.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-t.C:
+				if time.Since(time.Unix(0, seen.Load())) > IdleStop {
+					close(stop)
+					return
+				}
+			}
+		}
+	}()
 	url := fmt.Sprintf("http://%s/?t=%s", ln.Addr(), tok)
-	out("Status page: " + url + "\nIt opens in your browser. Keep this window open while you use the panel: closing it stops the panel. Click Close on the page when done.")
+	out("Status page: " + url + "\nIt opens in your browser. The panel stops by itself when no page has been open for a while.")
 	exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	<-done
+	select {
+	case <-done:
+	case <-stop:
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	return srv.Shutdown(ctx)

@@ -305,17 +305,22 @@ func ParseVouchers(r io.Reader, fn func(Voucher) error) error {
 	})
 }
 
-// Group is an account group. Parent "" means primary.
+// Group is an account group. Parent "" means primary. Reserved is Tally's built-in name for
+// a predefined group ("Stock-in-Hand"), kept when the user renames it (seen on a client:
+// a renamed stock group made its closing-stock values look like a trial-balance mismatch).
 type Group struct {
 	Name, Parent                  string
 	IsRevenue, AffectsGrossProfit bool
+	Reserved                      string
 }
 
 type xGroup struct {
-	Name     string `xml:"NAME,attr"`
-	Parent   string `xml:"PARENT"`
-	Revenue  string `xml:"ISREVENUE"`
-	AffectGP string `xml:"AFFECTSGROSSPROFIT"`
+	Name         string `xml:"NAME,attr"`
+	ReservedAttr string `xml:"RESERVEDNAME,attr"`
+	Reserved     string `xml:"RESERVEDNAME"`
+	Parent       string `xml:"PARENT"`
+	Revenue      string `xml:"ISREVENUE"`
+	AffectGP     string `xml:"AFFECTSGROSSPROFIT"`
 }
 
 // primaryParent normalises Tally's "&#4; Primary" (sanitised to " Primary") to "".
@@ -330,7 +335,12 @@ func primaryParent(p string) string {
 // ParseGroups streams groups.
 func ParseGroups(r io.Reader, fn func(Group) error) error {
 	return each(r, "GROUP", func(x *xGroup) error {
-		return fn(Group{Name: x.Name, Parent: primaryParent(x.Parent), IsRevenue: yes(x.Revenue), AffectsGrossProfit: yes(x.AffectGP)})
+		res := strings.TrimSpace(x.Reserved)
+		if res == "" {
+			res = strings.TrimSpace(x.ReservedAttr)
+		}
+		return fn(Group{Name: x.Name, Parent: primaryParent(x.Parent), IsRevenue: yes(x.Revenue),
+			AffectsGrossProfit: yes(x.AffectGP), Reserved: res})
 	})
 }
 

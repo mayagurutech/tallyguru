@@ -35,7 +35,8 @@ func TestFallback(t *testing.T) {
 	if T(Lang("xx"), "forget_done", "d") != "Deleted d." {
 		t.Error("unknown language must fall back to English")
 	}
-	if T(EN, "ai_instructions") != "" || T(HI, "ai_instructions") == "" {
-		t.Error("AI instructions only for Hindi")
+	en, hi := T(EN, "ai_instructions"), T(HI, "ai_instructions")
+	if !strings.Contains(en, "sync_now") || !strings.Contains(hi, "sync_now") || !strings.Contains(hi, "Hindi") || strings.Contains(en, "Hindi") {
+		t.Errorf("AI instructions: connect hint in both, Hindi only for Hindi: %q / %q", en, hi)
 	}
 }
