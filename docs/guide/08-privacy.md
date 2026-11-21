@@ -4,7 +4,7 @@
 
 - Books copied from Tally are kept in `%USERPROFILE%\TallyGuru`, one folder per company.
 - Authorisation records and letter copies are encrypted with a key tied to your Windows account.
-- Excel files are saved in `Documents\Tally MCP by Guru`.
+- Excel files are saved in `Documents\LedgerGuru`.
 - The tool sends nothing to the author and has no cloud part. The only outside request is the
   optional update check, which reads GitHub's public release page.
 

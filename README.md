@@ -1,4 +1,4 @@
-# Tally MCP by Guru
+# LedgerGuru – MCP for TallyPrime
 
 A free, open-source MCP server that assists accountants, auditors and business owners with
 accounting, reconciliation, audit checks and reports on TallyPrime data, through any
@@ -55,7 +55,7 @@ trademarks of Tally Solutions Pvt. Ltd.** "TallyPrime" is used only to describe 
 
 Step-by-step guides: [docs/guide](docs/guide/README.md).
 
-You can open the panel again any time from the Start menu: **Tally MCP control panel**.
+You can open the panel again any time from the Start menu: **LedgerGuru control panel**.
 To update, open the panel's **Updates** section and click **Check for a new version**, then
 **Update now**. It downloads the installer from this repository's Releases, checks it against the
 published checksum and installs it; your data and settings stay. Then fully quit and reopen your AI app.

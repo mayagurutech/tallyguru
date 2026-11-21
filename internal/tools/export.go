@@ -12,7 +12,7 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/xlsx"
 )
 
-// ExportDir is where Excel files go: Documents\Tally MCP by Guru\<company>. Files stay on
+// ExportDir is where Excel files go: Documents\LedgerGuru\<company>. Files stay on
 // this PC with real names (privacy mode only changes what the AI is told).
 func (e *Env) exportDir(company string) (string, error) {
 	d := filepath.Join(e.Cfg.ExportBase(), SafeName(company))

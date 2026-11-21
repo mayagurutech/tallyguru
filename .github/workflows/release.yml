@@ -71,4 +71,4 @@ jobs:
           if ("${{ github.ref_name }}" -like '*-*') { $extra += '--prerelease' }
           # Only the installer is published (author, 21 Nov 2026): one file to download.
           gh release create "${{ github.ref_name }}" dist/TallyMCP-Setup.exe dist/SHA256SUMS.txt `
-            --title "Tally MCP by Guru ${{ env.VER }}" --generate-notes @extra
+            --title "LedgerGuru ${{ env.VER }}" --generate-notes @extra

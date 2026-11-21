@@ -78,7 +78,7 @@ type Config struct {
 	PrivacyMode bool `json:"privacy_mode"`
 	// NoAutoRefresh switches OFF the quick check with Tally before answering (on by default).
 	NoAutoRefresh bool `json:"no_auto_refresh,omitempty"`
-	// ExportDir is where Excel files are saved (default: Documents\Tally MCP by Guru).
+	// ExportDir is where Excel files are saved (default: Documents\LedgerGuru).
 	ExportDir string `json:"export_dir,omitempty"`
 	// Agreed records when the disclaimer and DPDP notice were accepted in the control panel.
 	Agreed string `json:"agreed,omitempty"`
@@ -133,16 +133,24 @@ func (c Config) Enabled(id string) bool {
 	return false
 }
 
-// ExportBase is the folder for Excel files: ExportDir, or Documents\Tally MCP by Guru.
+// ExportBase is the folder for Excel files: ExportDir, or Documents\LedgerGuru (the old "LedgerGuru" folder if it exists).
 func (c Config) ExportBase() string {
 	if c.ExportDir != "" {
 		return c.ExportDir
 	}
 	h, err := os.UserHomeDir()
 	if err != nil {
-		return "Tally MCP by Guru"
+		return "LedgerGuru"
 	}
-	return filepath.Join(h, "Documents", "Tally MCP by Guru")
+	if old := filepath.Join(h, "Documents", "LedgerGuru"); dirExists(old) {
+		return old // files saved before the rename stay where users know them
+	}
+	return filepath.Join(h, "Documents", "LedgerGuru")
+}
+
+func dirExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
 }
 
 // EnabledList returns enabled module IDs, sorted.

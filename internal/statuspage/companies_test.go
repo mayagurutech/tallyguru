@@ -15,7 +15,7 @@ func TestConnectClaudeKeepsOtherServers(t *testing.T) {
 	t.Setenv("APPDATA", app)
 	p := filepath.Join(app, "Claude", "claude_desktop_config.json")
 	os.MkdirAll(filepath.Dir(p), 0o700)
-	os.WriteFile(p, []byte(`{"mcpServers":{"other":{"command":"x.exe"},"tally-guru":{"command":"old.exe","env":{"ALLOW_LIVE":"1"}}},"theme":"dark"}`), 0o600)
+	os.WriteFile(p, []byte(`{"mcpServers":{"other":{"command":"x.exe"},"ledgerguru":{"command":"old.exe","env":{"ALLOW_LIVE":"1"}}},"theme":"dark"}`), 0o600)
 	root := t.TempDir()
 	plan, err := PlanClaude(root)
 	if err != nil || plan.Path != p || plan.Already {
@@ -31,7 +31,7 @@ func TestConnectClaudeKeepsOtherServers(t *testing.T) {
 	b, _ := os.ReadFile(p)
 	json.Unmarshal(b, &m)
 	srv := m["mcpServers"].(map[string]any)
-	tg := srv["tally-guru"].(map[string]any)
+	tg := srv["ledgerguru"].(map[string]any)
 	args, _ := json.Marshal(tg["args"])
 	if srv["other"] == nil || m["theme"] != "dark" || tg["env"] == nil || !strings.Contains(string(args), "serve") || !strings.Contains(string(args), "-data") {
 		t.Errorf("config after connect: %s", b)

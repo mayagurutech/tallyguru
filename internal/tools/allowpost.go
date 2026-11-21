@@ -24,7 +24,7 @@ func (e *Env) allowPost(company string) error {
 		return nil
 	}
 	if e.Confirm != nil {
-		yes, err := e.Confirm("Tally MCP by Guru: allow posting to "+company, fmt.Sprintf("Allow posting to %s in TallyPrime?\n\n"+
+		yes, err := e.Confirm("LedgerGuru: allow posting to "+company, fmt.Sprintf("Allow posting to %s in TallyPrime?\n\n"+
 			"Until now only the test company %q could be posted to. Every entry is still shown to you first and posted only when you confirm. "+
 			"Take a Tally backup (Alt+Y) before posting. You can switch this off again in the control panel (Drafts and writes).\n\nClick Yes to allow.", company, config.TestCompany))
 		if err != nil {

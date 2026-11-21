@@ -20,7 +20,7 @@ period, the current year to date is used.
 
 ## Excel files
 
-Add "in Excel" to the question. The file is saved in `Documents\Tally MCP by Guru\<company>` and
+Add "in Excel" to the question. The file is saved in `Documents\LedgerGuru\<company>` and
 the AI gets only its path. The control panel lists recent files; **Open Excel folder** opens the
 folder. Excel files keep real names even in privacy mode, because they stay on your PC.
 

@@ -13,7 +13,7 @@ Writing to Tally is off unless your role allows it (Accountant) and **Read-only*
    that were previewed can be posted.
 
 After posting, the books are synced and the trial balance is checked again. Every entry gets
-"Posted via Tally MCP by Guru" in its narration and a line in the write log.
+"Posted via LedgerGuru" in its narration and a line in the write log.
 
 ## Checks on every draft
 

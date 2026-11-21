@@ -31,7 +31,7 @@ func buildServer(root string) (*mcp.Server, error) {
 	}
 	config.SetLiveWrites(cfg.LiveWrites)
 	env := &tools.Env{Root: root, Cfg: cfg, Box: box, Now: time.Now, Tally: tally.NewClient(cfg.Host, cfg.Port)}
-	s := &mcp.Server{Name: "tally-mcp-by-guru", Version: version,
+	s := &mcp.Server{Name: "ledgerguru", Version: version,
 		Instructions: i18n.T(i18n.Of(cfg.Language), "ai_instructions")}
 	startupEnv = env
 	env.Ask = s.Elicit // the authorisation form goes to the user, not the AI
@@ -102,6 +102,6 @@ func runServe(root string) error {
 	for _, t := range s.Tools() {
 		names = append(names, t.Name)
 	}
-	fmt.Fprintf(os.Stderr, "tally-mcp-by-guru %s serving %d tools: %s\n", version, len(names), strings.Join(names, ", "))
+	fmt.Fprintf(os.Stderr, "ledgerguru %s serving %d tools: %s\n", version, len(names), strings.Join(names, ", "))
 	return s.Serve(os.Stdin, os.Stdout)
 }

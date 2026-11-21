@@ -111,9 +111,14 @@ func (b *Book) NewChange(action string, before Voucher, guid string, after *Vouc
 	return c, errs, warns
 }
 
+// remarks are every narration remark the tool has used (old names too), stripped when altering.
+var remarks = []string{Remark, "Altered via LedgerGuru", "Posted via Tally MCP by Guru", "Altered via Tally MCP by Guru"}
+
 func stripRemark(n string) string {
-	if i := strings.Index(n, Remark); i >= 0 {
-		n = n[:i]
+	for _, r := range remarks {
+		if i := strings.Index(n, r); i >= 0 {
+			n = n[:i]
+		}
 	}
 	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(n), "."))
 }
@@ -176,7 +181,7 @@ func ChangeXML(company string, c Change) string {
 	start := strings.Index(full, "<VOUCHER ")
 	end := strings.Index(full[start:], ">") + start + 1
 	body := full[end:strings.Index(full, "</VOUCHER>")]
-	body = strings.Replace(body, Remark, "Altered via Tally MCP by Guru", 1)
+	body = strings.Replace(body, Remark, "Altered via LedgerGuru", 1)
 	return envelope(company, "Vouchers", head+body+"</VOUCHER></TALLYMESSAGE>")
 }
 

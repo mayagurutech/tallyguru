@@ -11,7 +11,7 @@ audit, reporting).
 
 We understand that:
 
-1. You will use "Tally MCP by Guru", free software that runs on your computer, together with an
+1. You will use "LedgerGuru", free software that runs on your computer, together with an
    AI service provided by ______________________________ (name of AI service provider).
 2. The books contain personal data, and the Digital Personal Data Protection Act, 2023 applies to it.
 3. Data the AI reads will be sent to that AI service provider for processing, under the

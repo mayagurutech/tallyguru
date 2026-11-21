@@ -92,18 +92,18 @@ data the AI reads is sent to my AI service provider for processing.`,
 	"forget_confirm":  {EN: "Type the company name exactly to confirm: ", HI: "पुष्टि के लिए कंपनी का नाम हूबहू टाइप करें: "},
 	"forget_mismatch": {EN: "name did not match; nothing deleted", HI: "नाम मेल नहीं खाया; कुछ भी नहीं मिटाया गया"},
 	"forget_done":     {EN: "Deleted %s.", HI: "मिटा दिया गया: %s"},
-	"tool_disclaimer": {EN: `Tally MCP by Guru is free software provided "as is" under the MIT licence, without any warranty.
+	"tool_disclaimer": {EN: `LedgerGuru is free software provided "as is" under the MIT licence, without any warranty.
 It assists with accounting, reconciliation, audit checks and reports; it is not professional, tax or legal
 advice. Back up your Tally data before any entry is posted. Check every output yourself. Audit findings need
 the auditor's own judgment and sign-off. You are responsible for your clients' data and their authorisations.
 Not affiliated with or endorsed by Tally Solutions Pvt. Ltd. Tally and TallyPrime are trademarks of Tally
 Solutions Pvt. Ltd.`,
-		HI: `Tally MCP by Guru एक मुफ़्त सॉफ़्टवेयर है, जो MIT लाइसेंस के तहत "जैसा है" उपलब्ध है, बिना किसी वारंटी के।
+		HI: `LedgerGuru एक मुफ़्त सॉफ़्टवेयर है, जो MIT लाइसेंस के तहत "जैसा है" उपलब्ध है, बिना किसी वारंटी के।
 यह अकाउंटिंग, मिलान, ऑडिट जाँच और रिपोर्ट में सहायता करता है; यह पेशेवर, टैक्स या कानूनी सलाह नहीं है।
 कोई भी एंट्री पोस्ट होने से पहले अपने Tally डेटा का बैकअप लें। हर आउटपुट स्वयं जाँचें। ऑडिट निष्कर्षों पर
 ऑडिटर का अपना निर्णय और हस्ताक्षर आवश्यक है। अपने क्लाइंट के डेटा और उनकी अनुमति की ज़िम्मेदारी आपकी है।
 Tally Solutions Pvt. Ltd. से संबद्ध या उनके द्वारा समर्थित नहीं। Tally और TallyPrime, Tally Solutions Pvt. Ltd. के ट्रेडमार्क हैं।`},
-	"setup_title":    {EN: "Tally MCP by Guru — feature setup", HI: "Tally MCP by Guru — सुविधा सेटअप"},
+	"setup_title":    {EN: "LedgerGuru — feature setup", HI: "LedgerGuru — सुविधा सेटअप"},
 	"setup_intro":    {EN: "Every feature is optional. Only what you switch on is loaded into your AI app.", HI: "हर सुविधा वैकल्पिक है। केवल वही AI ऐप में लोड होगा जो आप चालू करेंगे।"},
 	"setup_profile":  {EN: "Choose a role profile (1-4)", HI: "भूमिका चुनें (1-4)"},
 	"setup_modules":  {EN: "Modules (number to switch on/off, Enter when done):", HI: "मॉड्यूल (चालू/बंद करने के लिए संख्या, पूरा होने पर Enter):"},

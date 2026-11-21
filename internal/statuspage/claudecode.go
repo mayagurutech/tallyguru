@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ClaudeCodeConfig is Claude Code's user settings file; its top-level mcpServers are available
@@ -48,10 +49,11 @@ func ConnectClaudeCode(root string) (changed bool, err error) {
 	}
 	cmd, args := Entry(root)
 	entry := map[string]any{"type": "stdio", "command": cmd, "args": args}
+	renamed := dropOldNames(servers)
 	if o, ok := servers[ServerName].(map[string]any); ok {
 		ob, _ := json.Marshal([]any{o["command"], o["args"]})
 		nb, _ := json.Marshal([]any{cmd, args})
-		if string(ob) == string(nb) {
+		if string(ob) == string(nb) && !renamed {
 			return false, nil
 		}
 		if env, ok := o["env"]; ok {
@@ -83,7 +85,7 @@ func ClaudeCodeSettings() string {
 }
 
 // AllowInClaudeCode lets Claude Code use these tools of this server without asking each time
-// (permissions.allow "mcp__tally-guru__<tool>"). Other settings are kept; the old file is
+// (permissions.allow "mcp__ledgerguru__<tool>"). Other settings are kept; the old file is
 // kept as a copy. Returns how many entries were added.
 func AllowInClaudeCode(tools []string) (int, error) {
 	p := ClaudeCodeSettings()
@@ -100,14 +102,19 @@ func AllowInClaudeCode(tools []string) (int, error) {
 	if perms == nil {
 		perms = map[string]any{}
 	}
-	allow, _ := perms["allow"].([]any)
+	prev, _ := perms["allow"].([]any)
+	var allow []any
 	have := map[string]bool{}
-	for _, a := range allow {
-		if s, ok := a.(string); ok {
-			have[s] = true
-		}
-	}
 	added := 0
+	for _, a := range prev {
+		s, _ := a.(string)
+		if strings.HasPrefix(s, "mcp__tally-guru__") { // the tool's name before 21 Nov 2026
+			added++ // counts as a change, so the file is written
+			continue
+		}
+		allow = append(allow, a)
+		have[s] = true
+	}
 	for _, t := range tools {
 		rule := "mcp__" + ServerName + "__" + t
 		if !have[rule] {

@@ -1,4 +1,4 @@
-// Command tallyguru is the Tally MCP by Guru server and admin CLI.
+// Command tallyguru is the LedgerGuru server and admin CLI.
 package main
 
 import (
@@ -22,7 +22,7 @@ import (
 var version = "0.1.0-dev"
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Tally MCP by Guru %s
+	fmt.Fprintf(os.Stderr, `LedgerGuru – MCP for TallyPrime %s
 Not affiliated with or endorsed by Tally Solutions Pvt. Ltd.
 
 Usage: tallyguru [flags] <command>

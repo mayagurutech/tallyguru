@@ -10,7 +10,7 @@ import (
 )
 
 // Remark is added to every narration so the entry can be traced in Tally.
-const Remark = "Posted via Tally MCP by Guru"
+const Remark = "Posted via LedgerGuru"
 
 // Marker is the per-draft tag in the narration, used to find the voucher after posting.
 func Marker(id int64) string { return fmt.Sprintf("[TMG-%d]", id) }

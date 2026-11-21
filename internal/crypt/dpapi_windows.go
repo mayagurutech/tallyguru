@@ -6,6 +6,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// The old product name stays here on purpose: changing it would make existing keys unreadable.
 var entropy = []byte("Tally MCP by Guru key v1")
 
 func blob(b []byte) *windows.DataBlob {

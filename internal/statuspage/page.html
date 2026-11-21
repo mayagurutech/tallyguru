@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tally MCP control panel</title>
+<title>LedgerGuru control panel</title>
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--mute:#5d6577;--line:#dde1e8;--acc:#1f6feb;--ok:#1a7f37;--warn:#b35900;--bad:#b42318}
 @media (prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2128;--ink:#e6e8ec;--mute:#9aa3b2;--line:#2e343e;--acc:#4c8dff;--ok:#3fb950;--warn:#e3a043;--bad:#f47067}}
@@ -34,10 +34,10 @@ select,input[type=text],input[type=number]{font:inherit;font-size:13px;padding:4
 @media(max-width:640px){.hide-s{display:none}}
 </style></head><body>
 <header>
- <div><h1>Tally MCP by Guru</h1><div class="sub" id="when">Loading…</div></div>
+ <div><h1>LedgerGuru – MCP for TallyPrime</h1><div class="sub" id="when">Loading…</div></div>
  <div class="row"><button onclick="load()">Refresh</button><button onclick="finish()">Close</button></div>
 </header>
-<div id="welcome"><div class="card"><h2>Welcome to Tally MCP by Guru</h2>
+<div id="welcome"><div class="card"><h2>Welcome to LedgerGuru</h2>
  <div class="row"><span class="k">Language</span><select id="wlang"><option value="en">English</option><option value="hi">Hindi (draft)</option></select></div>
  <h2 style="margin-top:12px">Please read</h2><div class="legal" id="wdis"></div>
  <h2>Data protection</h2><div class="legal" id="wnot"></div>
@@ -94,7 +94,7 @@ const $=id=>document.getElementById(id);
 // instead of leaving a button on "Checking…".
 const _fetch=window.fetch.bind(window);
 window.fetch=async(...a)=>{try{return await _fetch(...a)}catch(e){gone();throw e}};
-function gone(){if($('gone'))return;const d=document.createElement('div');d.id='gone';d.className='card';d.style.cssText='border:2px solid #d33;margin:12px auto;max-width:1060px';d.innerHTML='<b>The control panel has stopped.</b> It stops by itself when no page was open for a while, or the update restarted it. Close this tab and open the panel again from the Start menu: <b>Tally MCP control panel</b>. Your data is safe.';document.body.prepend(d);document.querySelectorAll('.msg').forEach(m=>{if(/…$/.test(m.textContent))m.textContent=''})}
+function gone(){if($('gone'))return;const d=document.createElement('div');d.id='gone';d.className='card';d.style.cssText='border:2px solid #d33;margin:12px auto;max-width:1060px';d.innerHTML='<b>The control panel has stopped.</b> It stops by itself when no page was open for a while, or the update restarted it. Close this tab and open the panel again from the Start menu: <b>LedgerGuru control panel</b>. Your data is safe.';document.body.prepend(d);document.querySelectorAll('.msg').forEach(m=>{if(/…$/.test(m.textContent))m.textContent=''})}
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const call=(p,q)=>fetch(p+'?t='+T+(q?'&'+new URLSearchParams(q):''),{method:'POST'});
 async function load(){

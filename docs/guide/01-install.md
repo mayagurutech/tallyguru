@@ -59,7 +59,7 @@ or your books is sent.
 
 ## The control panel (optional)
 
-Start menu: **Tally MCP control panel**. It opens in your browser and is only needed for
+Start menu: **LedgerGuru control panel**. It opens in your browser and is only needed for
 settings: features and role, ledger mapping, drafts, deleting a company's local data, updates.
 It runs in the background without a window and stops by itself when no panel page has been
 open for 30 minutes.

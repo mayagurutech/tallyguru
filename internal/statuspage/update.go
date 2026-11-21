@@ -46,7 +46,7 @@ func (r release) asset(name string) string {
 
 func get(ctx context.Context, url string, limit int64) ([]byte, error) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	req.Header.Set("User-Agent", "tally-mcp-by-guru") // generic client name, no user details
+	req.Header.Set("User-Agent", "ledgerguru") // generic client name, no user details
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

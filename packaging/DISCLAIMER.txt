@@ -1,6 +1,6 @@
-Tally MCP by Guru - please read before installing
+LedgerGuru – MCP for TallyPrime - please read before installing
 
-Tally MCP by Guru is free software provided "as is" under the MIT licence, without any warranty.
+LedgerGuru is free software provided "as is" under the MIT licence, without any warranty.
 It assists with accounting, reconciliation, audit checks and reports; it is not professional,
 tax or legal advice.
 

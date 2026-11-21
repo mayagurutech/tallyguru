@@ -49,7 +49,7 @@ func (b *Box) Seal(plain []byte, label string) ([]byte, error) {
 func (b *Box) Open(data []byte, label string) ([]byte, error) {
 	n := b.aead.NonceSize()
 	if len(data) < len(magic)+n || string(data[:len(magic)]) != magic {
-		return nil, errors.New("not an encrypted Tally MCP file")
+		return nil, errors.New("not an encrypted LedgerGuru file")
 	}
 	p, err := b.aead.Open(nil, data[len(magic):len(magic)+n], data[len(magic)+n:], []byte(label))
 	if err != nil {

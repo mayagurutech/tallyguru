@@ -24,7 +24,7 @@ func TestChangeXML(t *testing.T) {
 	}
 	c.ID = 7
 	x := ChangeXML("TEST MCP", c)
-	for _, want := range []string{`ACTION="Alter">`, `<AMOUNT>-26000.00</AMOUNT>`, `Altered via Tally MCP by Guru [TMG-7]`} {
+	for _, want := range []string{`ACTION="Alter">`, `<AMOUNT>-26000.00</AMOUNT>`, `Altered via LedgerGuru [TMG-7]`} {
 		if !strings.Contains(x, want) {
 			t.Errorf("missing %s\n%s", want, x)
 		}

@@ -173,10 +173,10 @@ func (e *Env) askAuthorisation(ctx context.Context, co tally.Company) (string, e
 
 func (e *Env) panelInstead(company string) (string, error) {
 	if e.OpenPanel == nil {
-		return "", fmt.Errorf("record the authorisation for %q in the control panel (Start menu: Tally MCP control panel), then ask again", company)
+		return "", fmt.Errorf("record the authorisation for %q in the control panel (Start menu: LedgerGuru control panel), then ask again", company)
 	}
 	if err := e.OpenPanel(); err != nil {
-		return "", fmt.Errorf("could not open the control panel (%v); open it from the Start menu: Tally MCP control panel", err)
+		return "", fmt.Errorf("could not open the control panel (%v); open it from the Start menu: LedgerGuru control panel", err)
 	}
 	return fmt.Sprintf("This AI app cannot show the authorisation form, so the control panel opened in your browser. "+
 		"Under Add a company, pick %s, type I AGREE and click Record and continue. Then ask me again to connect it.", company), nil
@@ -273,7 +273,7 @@ func (e *Env) confirmAuthorisation(co tally.Company) (string, error) {
 	}
 	fmt.Fprintf(&m, "Financial year %s. Asked once a year; covers %s and every company you connect this year.\n\n%s\n\n%s\n\n%s\n\nClick Yes to accept.",
 		auth.FY(e.Now()), co.Name, notice, decl, disc)
-	yes, err := e.Confirm("Tally MCP by Guru: authorisation for FY "+auth.FY(e.Now()), m.String())
+	yes, err := e.Confirm("LedgerGuru: authorisation for FY "+auth.FY(e.Now()), m.String())
 	if err != nil {
 		return "", fmt.Errorf("could not show the authorisation dialog: %v", err)
 	}

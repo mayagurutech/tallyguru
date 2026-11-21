@@ -125,7 +125,7 @@ func Forget(root, company string, src store.Source, typed string) (string, error
 func isDir(p string) bool { fi, err := os.Stat(p); return err == nil && fi.IsDir() }
 
 // ServerName is the entry name used in AI apps.
-const ServerName = "tally-guru"
+const ServerName = "ledgerguru"
 
 // Entry is the MCP server entry for this tool. -data fixes the data folder, so the AI app and
 // the control panel always use the same one (the Microsoft Store Claude app redirects AppData).
@@ -159,10 +159,11 @@ func PlanClaude(root string) (ClaudePlan, error) {
 		servers = map[string]any{}
 	}
 	entry := map[string]any{"command": cmd, "args": args}
+	renamed := dropOldNames(servers)
 	if old, ok := servers[ServerName].(map[string]any); ok {
 		ob, _ := json.Marshal([]any{old["command"], old["args"]})
 		nb, _ := json.Marshal([]any{cmd, args})
-		p.Already = string(ob) == string(nb)
+		p.Already = string(ob) == string(nb) && !renamed
 		if env, ok := old["env"]; ok {
 			entry["env"] = env // keep the user's own settings
 		}
@@ -189,4 +190,21 @@ func ConnectClaude(root string) (ClaudePlan, error) {
 		}
 	}
 	return p, os.WriteFile(p.Path, []byte(p.After), 0o600)
+}
+
+// dropOldNames removes entries that start this program under another name (the tool was called
+// "tally-guru" before 21 Nov 2026), so the AI app does not load it twice. Reports whether any went.
+func dropOldNames(servers map[string]any) bool {
+	dropped := false
+	for name, v := range servers {
+		e, ok := v.(map[string]any)
+		if !ok || name == ServerName {
+			continue
+		}
+		if c, _ := e["command"].(string); strings.EqualFold(filepath.Base(c), "tallyguru.exe") {
+			delete(servers, name)
+			dropped = true
+		}
+	}
+	return dropped
 }
