@@ -16,8 +16,11 @@ Desktop or Claude Code). The tool works on a 4 GB PC.
 3. Open the company in TallyPrime, then ask the AI app: **Connect my Tally company**.
 
 The AI app checks TallyPrime, shows you the data-protection notice and asks you to type
-**I AGREE** (see [2. Your first company](02-first-company.md)), then starts the first sync. You
-can ask questions as soon as it finishes.
+**I AGREE** once for the financial year (see [2. Your first company](02-first-company.md)), then
+starts the first sync. You can ask questions as soon as it finishes. From then on, open any
+company in TallyPrime and just ask: Claude sees which company is open and connects a new one
+by itself. In Claude Code, setup also lets the reading tools run without asking each time;
+posting to Tally still asks.
 
 ## If TallyPrime does not answer
 

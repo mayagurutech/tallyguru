@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -31,8 +32,10 @@ type Env struct {
 	Ask       func(message string, schema json.RawMessage) (mcp.Elicitation, error)
 	OpenPanel func() error
 
-	checked map[string]time.Time // last quick check per company folder
-	note    string               // appended to the current answer (e.g. stale data)
+	checked   map[string]time.Time // last quick check per company folder
+	openNames []string             // companies open in Tally, cached (openInTally)
+	openAt    time.Time
+	note      string // appended to the current answer (e.g. stale data)
 }
 
 // RefreshEvery is how old the last check may be before an answer triggers a quick check.
@@ -177,7 +180,7 @@ func (e *Env) open(a map[string]any, needTB bool) (*store.DB, error) {
 		return nil, err
 	}
 	if len(ls) == 0 {
-		return nil, fmt.Errorf("no company synced yet; run: tallyguru sync \"<company>\"")
+		return nil, fmt.Errorf("no company connected yet: call sync_now (with the company name, if the user gave one) to connect the company open in TallyPrime")
 	}
 	want := strings.ToLower(str(a, "company"))
 	var hits []store.Label
@@ -194,6 +197,20 @@ func (e *Env) open(a map[string]any, needTB bool) (*store.DB, error) {
 			}
 		}
 	}
+	if len(hits) == 0 && want != "" {
+		return nil, fmt.Errorf("%q is not connected yet: call sync_now with company %q to connect it", str(a, "company"), str(a, "company"))
+	}
+	if len(hits) > 1 && want == "" { // no name given: the company open in TallyPrime now
+		var open []store.Label
+		for _, l := range hits {
+			if l.Source == store.Live && slices.ContainsFunc(e.openInTally(), func(n string) bool { return strings.EqualFold(n, l.Company) }) {
+				open = append(open, l)
+			}
+		}
+		if len(open) == 1 {
+			hits = open
+		}
+	}
 	if len(hits) != 1 {
 		var names []string
 		for _, l := range ls {
@@ -202,7 +219,11 @@ func (e *Env) open(a map[string]any, needTB bool) (*store.DB, error) {
 		return nil, fmt.Errorf("say which company: %s", strings.Join(names, "; "))
 	}
 	l := hits[0]
-	if _, err := (auth.Store{Dir: l.Dir(e.Root), Box: e.Box}).Valid(l.Company, e.Now()); err != nil {
+	if _, err := auth.CoverFromAnnual(auth.Store{Dir: e.Root, Box: e.Box}, auth.Store{Dir: l.Dir(e.Root), Box: e.Box},
+		l.Company, l.GSTIN, string(l.Source), e.Now()); err != nil {
+		if l.Source == store.Live {
+			return nil, fmt.Errorf("%s needs this year's authorisation: call sync_now with company %q (the user is asked)", l.Company, l.Company)
+		}
 		return nil, err
 	}
 	e.refresh(l)

@@ -50,7 +50,7 @@ func authorise(t *testing.T, e *Env) {
 func TestToolsRefuseWithoutAuthorisation(t *testing.T) {
 	e, db := env(t)
 	tbcheck.Run(db)
-	if _, err := e.trialBalance(map[string]any{}); err == nil || !strings.Contains(err.Error(), "no authorisation") {
+	if _, err := e.trialBalance(map[string]any{}); err == nil || !strings.Contains(err.Error(), "authorisation") {
 		t.Fatalf("expected authorisation refusal, got %v", err)
 	}
 }

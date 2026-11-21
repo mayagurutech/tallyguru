@@ -10,6 +10,31 @@ import (
 // TestCompany is the dummy company that is always writable.
 const TestCompany = "TEST MCP"
 
+// LiveWord must be typed by the user (panel, or a form the AI app shows the user) to allow
+// posting to a company other than TEST MCP.
+const LiveWord = "ALLOW WRITES"
+
+// AllowWritesFor records that the user allowed posting to company (saved in config.json and
+// applied at once in this process).
+func AllowWritesFor(root, company string) error {
+	c, err := Load(root)
+	if err != nil {
+		return err
+	}
+	for _, n := range c.LiveWrites {
+		if strings.EqualFold(n, company) {
+			SetLiveWrites(c.LiveWrites)
+			return nil
+		}
+	}
+	c.LiveWrites = append(c.LiveWrites, company)
+	if err := c.Save(root); err != nil {
+		return err
+	}
+	SetLiveWrites(c.LiveWrites)
+	return nil
+}
+
 // AllowLiveWrites reports whether ALLOW_LIVE_WRITES=1 is set. Reading never needs a switch.
 func AllowLiveWrites() bool { return os.Getenv("ALLOW_LIVE_WRITES") == "1" }
 
@@ -30,5 +55,5 @@ func CheckWrite(name string) error {
 	if strings.EqualFold(strings.TrimSpace(name), TestCompany) || AllowLiveWrites() || liveWrites[strings.ToLower(strings.TrimSpace(name))] {
 		return nil
 	}
-	return fmt.Errorf("writing to %q refused: writes work only on %q (switch on live writes for it in the control panel)", name, TestCompany)
+	return fmt.Errorf("posting to %q refused: posting works only on %q until the user allows it for %q (type %s when asked, or in the control panel)", name, TestCompany, name, LiveWord)
 }

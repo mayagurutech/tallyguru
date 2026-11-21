@@ -135,3 +135,49 @@ func Authorise(ctx context.Context, root string, c *tally.Client, rq AuthRequest
 	dir := store.Label{Company: co.Name, GSTIN: co.GSTIN, Source: src}.Dir(root)
 	return (auth.Store{Dir: dir, Box: box}).Add(r, data)
 }
+
+// AnnualStore is where the yearly declaration covering every company is kept (the data folder).
+func AnnualStore(root string, box *crypt.Box) auth.Store { return auth.Store{Dir: root, Box: box} }
+
+// HasAnnual reports whether this financial year's yearly declaration is recorded.
+func HasAnnual(root string, box *crypt.Box, now time.Time) bool {
+	_, err := AnnualStore(root, box).Valid(auth.AllCompanies, now)
+	return err == nil
+}
+
+// AnnualTexts returns the yearly declaration for a kind (self or owner).
+func AnnualTexts(lang string, kind auth.Kind) AuthText {
+	t := AuthTexts(lang, kind)
+	L := i18n.Of(lang)
+	if kind == auth.Owner {
+		t.Declaration = i18n.T(L, "owner_declaration_all")
+	} else {
+		t.Declaration = i18n.T(L, "self_declaration_all")
+	}
+	return t
+}
+
+// RecordAnnual records the yearly declaration (self-certification or owner's declaration)
+// covering every company connected this financial year. typed must be the user's own words.
+func RecordAnnual(root string, kind auth.Kind, typed string, now time.Time) error {
+	cfg, _ := config.Load(root)
+	L := i18n.Of(cfg.Language)
+	if kind != auth.Owner {
+		kind = auth.Self
+	}
+	ok := false
+	for _, w := range i18n.ConfirmWords[L] {
+		ok = ok || strings.EqualFold(strings.TrimSpace(typed), w)
+	}
+	if !ok {
+		return fmt.Errorf("%s", i18n.T(L, "not_accepted"))
+	}
+	box, err := crypt.LoadOrCreate(root)
+	if err != nil {
+		return err
+	}
+	t := AnnualTexts(cfg.Language, kind)
+	r := auth.Record{Company: auth.AllCompanies, Kind: kind, FY: auth.FY(now), AcceptedAt: now,
+		NoticeLang: string(L), NoticeSHA256: auth.Sum([]byte(t.Notice + "\n" + t.Declaration))}
+	return AnnualStore(root, box).Add(r, nil)
+}

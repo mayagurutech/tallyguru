@@ -75,3 +75,67 @@ func ConnectClaudeCode(root string) (changed bool, err error) {
 	}
 	return true, os.Rename(tmp, p)
 }
+
+// ClaudeCodeSettings is Claude Code's user settings file (permissions live here).
+func ClaudeCodeSettings() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude", "settings.json")
+}
+
+// AllowInClaudeCode lets Claude Code use these tools of this server without asking each time
+// (permissions.allow "mcp__tally-guru__<tool>"). Other settings are kept; the old file is
+// kept as a copy. Returns how many entries were added.
+func AllowInClaudeCode(tools []string) (int, error) {
+	p := ClaudeCodeSettings()
+	m := map[string]any{}
+	old, rerr := os.ReadFile(p)
+	if rerr == nil && len(bytes.TrimSpace(old)) > 0 {
+		d := json.NewDecoder(bytes.NewReader(old))
+		d.UseNumber()
+		if err := d.Decode(&m); err != nil {
+			return 0, fmt.Errorf("Claude Code's settings.json is not valid JSON; fix %s first", p)
+		}
+	}
+	perms, _ := m["permissions"].(map[string]any)
+	if perms == nil {
+		perms = map[string]any{}
+	}
+	allow, _ := perms["allow"].([]any)
+	have := map[string]bool{}
+	for _, a := range allow {
+		if s, ok := a.(string); ok {
+			have[s] = true
+		}
+	}
+	added := 0
+	for _, t := range tools {
+		rule := "mcp__" + ServerName + "__" + t
+		if !have[rule] {
+			allow = append(allow, rule)
+			have[rule] = true
+			added++
+		}
+	}
+	if added == 0 {
+		return 0, nil
+	}
+	perms["allow"] = allow
+	m["permissions"] = perms
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return 0, err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		return 0, err
+	}
+	if rerr == nil {
+		if err := os.WriteFile(p+".before-tallyguru", old, 0o600); err != nil {
+			return 0, err
+		}
+	}
+	tmp := p + ".tallyguru-tmp"
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return 0, err
+	}
+	return added, os.Rename(tmp, p)
+}

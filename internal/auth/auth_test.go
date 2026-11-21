@@ -124,3 +124,23 @@ func TestRecordsBoundToCompanyFolder(t *testing.T) {
 		t.Fatal("authorisation copied to another company's folder must not be accepted")
 	}
 }
+
+// The yearly declaration gives each company its own record (marked with its basis) at first
+// use; without it, the usual error.
+func TestCoverFromAnnual(t *testing.T) {
+	box, _ := crypt.New(bytes.Repeat([]byte{7}, 32))
+	root := t.TempDir()
+	annual, co := Store{Dir: root, Box: box}, Store{Dir: root + "/co", Box: box}
+	now := time.Date(2026, 11, 21, 0, 0, 0, 0, time.UTC)
+	if _, err := CoverFromAnnual(annual, co, "ABC", "", "live", now); err == nil {
+		t.Fatal("no declaration at all must refuse")
+	}
+	annual.Add(Record{Company: AllCompanies, Kind: Self, FY: FY(now), AcceptedAt: now}, nil)
+	r, err := CoverFromAnnual(annual, co, "ABC", "27AAAAA0000A1Z5", "live", now)
+	if err != nil || r.Company != "ABC" || !strings.Contains(r.Basis, "annual declaration of 21-11-2026") {
+		t.Fatalf("record from yearly declaration: %+v %v", r, err)
+	}
+	if _, err := CoverFromAnnual(annual, co, "ABC", "", "live", now.AddDate(1, 0, 0)); err == nil {
+		t.Fatal("next financial year must ask again")
+	}
+}

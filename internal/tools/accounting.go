@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mayagurutech/tallyguru/internal/config"
 	"github.com/mayagurutech/tallyguru/internal/mcp"
 	"github.com/mayagurutech/tallyguru/internal/store"
 	"github.com/mayagurutech/tallyguru/internal/syncjob"
@@ -49,14 +48,11 @@ func Masters(e *Env) []mcp.Tool {
 		Handler: e.draftMaster}}
 }
 
-// openWrite opens a company for writing: the read checks plus the write guard.
+// openWrite opens a company's local drafts, statements and rules (any company: nothing goes
+// to Tally here). Posting to Tally is guarded separately by allowPost.
 func (e *Env) openWrite(a map[string]any) (*store.DB, error) {
 	db, err := e.open(a, false)
 	if err != nil {
-		return nil, err
-	}
-	if err := config.CheckWrite(db.Label.Company); err != nil {
-		db.Close()
 		return nil, err
 	}
 	db.Exec(write.Schema)
@@ -177,6 +173,10 @@ func (e *Env) postDrafts(a map[string]any) (string, error) {
 	}
 	db, err := e.openWrite(a)
 	if err != nil {
+		return "", err
+	}
+	if err := e.allowPost(db.Label.Company); err != nil {
+		db.Close()
 		return "", err
 	}
 	label, dir := db.Label, db.Label.Dir(e.Root)

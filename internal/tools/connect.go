@@ -109,7 +109,8 @@ func (e *Env) companyConnect(a map[string]any) (string, error) {
 		return b.String(), nil
 	}
 	label := store.Label{Company: co.Name, GSTIN: co.GSTIN, Source: store.Live}
-	if _, err := (auth.Store{Dir: label.Dir(e.Root), Box: e.Box}).Valid(co.Name, e.Now()); err != nil {
+	if _, err := (auth.Store{Dir: label.Dir(e.Root), Box: e.Box}).Valid(co.Name, e.Now()); err != nil &&
+		!onboard.HasAnnual(e.Root, e.Box, e.Now()) {
 		if msg, err := e.askAuthorisation(ctx, *co); msg != "" || err != nil {
 			return msg, err
 		}
@@ -122,17 +123,18 @@ func (e *Env) companyConnect(a map[string]any) (string, error) {
 		"A large company can take a few minutes the first time. Use sync_status to see progress.", co.Name), nil
 }
 
-// askAuthorisation records the DPDP authorisation for this financial year from the user's own
-// typed answer. Returns a message when the flow stops here.
+// askAuthorisation records the yearly DPDP declaration (covers every company connected this
+// financial year; author's choice, 21 Nov 2026) from the user's own typed answer. Each company
+// gets its own record from it at its first sync. Returns a message when the flow stops here.
 func (e *Env) askAuthorisation(ctx context.Context, co tally.Company) (string, error) {
 	L := i18n.Of(e.Cfg.Language)
-	self, owner := onboard.AuthTexts(e.Cfg.Language, auth.Self), onboard.AuthTexts(e.Cfg.Language, auth.Owner)
+	self, owner := onboard.AnnualTexts(e.Cfg.Language, auth.Self), onboard.AnnualTexts(e.Cfg.Language, auth.Owner)
 	var m strings.Builder
 	needAgree := onboard.NeedAgree(e.Cfg)
 	if needAgree {
 		m.WriteString(i18n.T(L, "tool_disclaimer") + "\n\n")
 	}
-	fmt.Fprintf(&m, "Company: %s\n\n%s\n\n%s:\n%s\n\n%s:\n%s\n\n%s", co.Name, self.Notice,
+	fmt.Fprintf(&m, "Financial year %s: asked once a year, covers %s and every company you connect this year.\n\n%s\n\n%s\n%s\n\n%s\n%s\n\n%s", auth.FY(e.Now()), co.Name, self.Notice,
 		self.Heading, self.Declaration, owner.Heading, owner.Declaration, self.Disclaimer)
 	if e.Ask == nil {
 		return e.panelInstead(co.Name)
@@ -152,8 +154,7 @@ func (e *Env) askAuthorisation(ctx context.Context, co tally.Company) (string, e
 	if kind != string(auth.Owner) {
 		kind = string(auth.Self)
 	}
-	if err := onboard.Authorise(ctx, e.Root, e.Tally, onboard.AuthRequest{Company: co.Name, Source: string(store.Live),
-		Kind: kind, Typed: typed}, e.Now()); err != nil {
+	if err := onboard.RecordAnnual(e.Root, auth.Kind(kind), typed, e.Now()); err != nil {
 		return "", err
 	}
 	if needAgree {
@@ -211,4 +212,49 @@ func pickCompany(cs []tally.Company, want string) *tally.Company {
 		}
 	}
 	return hit
+}
+
+// openInTally returns the companies open in TallyPrime now (cached for a minute; empty when
+// Tally does not answer within 3 s).
+func (e *Env) openInTally() []string {
+	if e.Tally == nil {
+		return nil
+	}
+	if time.Since(e.openAt) < time.Minute {
+		return e.openNames
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	cs, _ := onboard.OpenCompanies(ctx, e.Tally)
+	e.openNames, e.openAt = nil, time.Now()
+	for _, c := range cs {
+		e.openNames = append(e.openNames, c.Name)
+	}
+	return e.openNames
+}
+
+// StartupNote tells the AI app, when it connects, which companies are open in TallyPrime and
+// which are connected, so it can use them without being told. Empty when Tally is not open.
+func (e *Env) StartupNote() string {
+	names := e.openInTally()
+	if len(names) == 0 {
+		return ""
+	}
+	connected := map[string]bool{}
+	if ls, err := store.List(e.Root); err == nil {
+		for _, l := range ls {
+			if l.Source == store.Live {
+				connected[strings.ToLower(l.Company)] = true
+			}
+		}
+	}
+	var parts []string
+	for _, n := range names {
+		if connected[strings.ToLower(n)] {
+			parts = append(parts, n+" (connected)")
+		} else {
+			parts = append(parts, n+" (not connected: sync_now connects it)")
+		}
+	}
+	return "Open in TallyPrime now: " + strings.Join(parts, "; ") + ". Without a company name, use the one open in TallyPrime."
 }

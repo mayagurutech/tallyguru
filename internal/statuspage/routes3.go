@@ -19,7 +19,7 @@ import (
 )
 
 // LiveWord must be typed to allow writes to a live company.
-const LiveWord = "ALLOW WRITES"
+const LiveWord = config.LiveWord
 
 func findLabel(root, company string, src store.Source) (store.Label, error) {
 	ls, err := store.List(root)
@@ -192,7 +192,7 @@ func addWriteRoutes(mux *http.ServeMux, root, version string, ok, post func(*htt
 			return
 		}
 		if rq.On {
-			fmt.Fprintf(w, "Writes allowed for %s. Take a Tally backup (Alt+Y) before posting. Restart your AI app for it to apply there.", rq.Company)
+			fmt.Fprintf(w, "Writes allowed for %s. Take a Tally backup (Alt+Y) before posting. The AI app picks it up at its next posting.", rq.Company)
 		} else {
 			fmt.Fprintf(w, "Writes switched off for %s.", rq.Company)
 		}

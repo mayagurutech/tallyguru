@@ -16,6 +16,9 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/tools"
 )
 
+// startupEnv is the tools' environment of the server being built (for the startup note).
+var startupEnv *tools.Env
+
 // buildServer registers tools for enabled modules only.
 func buildServer(root string) (*mcp.Server, error) {
 	cfg, err := config.Load(root)
@@ -30,6 +33,7 @@ func buildServer(root string) (*mcp.Server, error) {
 	env := &tools.Env{Root: root, Cfg: cfg, Box: box, Now: time.Now, Tally: tally.NewClient(cfg.Host, cfg.Port)}
 	s := &mcp.Server{Name: "tally-mcp-by-guru", Version: version,
 		Instructions: i18n.T(i18n.Of(cfg.Language), "ai_instructions")}
+	startupEnv = env
 	env.Ask = s.Elicit // the authorisation form goes to the user, not the AI
 	env.OpenPanel = func() error { return startDetached("-data", root, "-here", "ui") }
 	if !cfg.NoMask {
@@ -87,6 +91,9 @@ func runServe(root string) error {
 	s, err := buildServer(root)
 	if err != nil {
 		return err
+	}
+	if note := startupEnv.StartupNote(); note != "" { // at most 3 s when Tally is slow
+		s.Instructions = strings.TrimSpace(s.Instructions + "\n" + note)
 	}
 	var names []string
 	for _, t := range s.Tools() {

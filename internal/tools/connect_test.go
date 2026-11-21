@@ -16,6 +16,7 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/config"
 	"github.com/mayagurutech/tallyguru/internal/crypt"
 	"github.com/mayagurutech/tallyguru/internal/mcp"
+	"github.com/mayagurutech/tallyguru/internal/onboard"
 	"github.com/mayagurutech/tallyguru/internal/store"
 	"github.com/mayagurutech/tallyguru/internal/syncjob"
 	"github.com/mayagurutech/tallyguru/internal/tally"
@@ -50,10 +51,10 @@ func connectEnv(t *testing.T, c *tally.Client) *Env {
 		return syncjob.Result{Mode: "full"}, nil
 	}
 	t.Cleanup(func() { // let a background sync finish before the folder is removed
-		runSync = syncjob.Run
 		for i := 0; i < 200 && bg.busy(); i++ {
 			time.Sleep(50 * time.Millisecond)
 		}
+		runSync = syncjob.Run
 		bg = bgSync{}
 	})
 	return &Env{Root: root, Cfg: config.Default(), Box: box, Now: time.Now, Tally: c}
@@ -90,11 +91,19 @@ func TestConnectListsThenAsksUser(t *testing.T) {
 	if !strings.Contains(asked, "Digital Personal Data Protection Act") || !strings.Contains(asked, "TEST MCP") {
 		t.Errorf("the user must see the notice: %q", asked)
 	}
-	if !authorised(e, "TEST MCP") {
-		t.Error("authorisation not recorded")
+	if !onboard.HasAnnual(e.Root, e.Box, e.Now()) || !strings.Contains(asked, "every company") {
+		t.Errorf("the yearly declaration must be asked and recorded: %q", asked)
 	}
 	if c, _ := config.Load(e.Root); c.Agreed == "" {
 		t.Error("disclaimer acceptance not recorded")
+	}
+	// A second company this year: no second question.
+	for bg.busy() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	asked = ""
+	if s, err := e.syncNow(map[string]any{"company": "Other Co"}); err != nil || !strings.Contains(s, "Sync started") || asked != "" {
+		t.Fatalf("second company: %q %v asked=%q", s, err, asked)
 	}
 }
 
@@ -127,5 +136,18 @@ func TestConnectNoElicitOpensPanel(t *testing.T) {
 	e.OpenPanel = func() error { opened = true; return nil }
 	if s, _ := e.companyConnect(map[string]any{"company": "Other"}); !opened || !strings.Contains(s, "Other Co") {
 		t.Fatalf("got %q", s)
+	}
+}
+
+func TestStartupNote(t *testing.T) {
+	e := connectEnv(t, fakeTally(t))
+	st, _ := store.Open(e.Root, store.Label{Company: "TEST MCP", Source: store.Live})
+	st.Close()
+	n := e.StartupNote()
+	if !strings.Contains(n, "TEST MCP (connected)") || !strings.Contains(n, "Other Co (not connected: sync_now connects it)") {
+		t.Fatalf("note: %q", n)
+	}
+	if (&Env{Root: e.Root, Tally: tally.NewClient("127.0.0.1", 1)}).StartupNote() != "" {
+		t.Error("Tally closed: no note")
 	}
 }

@@ -32,6 +32,10 @@ func (e *Env) changeVoucher(a map[string]any) (string, error) {
 		return "", err
 	}
 	if id, ok := a["draft_id"].(float64); ok {
+		if err := e.allowPost(db.Label.Company); err != nil {
+			db.Close()
+			return "", err
+		}
 		return e.postChange(db, int64(id), str(a, "confirm"))
 	}
 	defer db.Close()

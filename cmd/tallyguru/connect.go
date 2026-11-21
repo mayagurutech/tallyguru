@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mayagurutech/tallyguru/internal/statuspage"
+	"github.com/mayagurutech/tallyguru/internal/tools"
 )
 
 // runConnect adds this server to the AI apps (the installer runs it after installing).
@@ -30,6 +31,12 @@ func runConnect(root string, desktop, code bool) error {
 			fmt.Println("Claude Code: connected (" + statuspage.ClaudeCodeConfig() + ")")
 		} else {
 			fmt.Println("Claude Code: already connected")
+		}
+		// Reading tools run without a prompt each time; posting tools still ask.
+		if n, err := statuspage.AllowInClaudeCode(tools.NoPromptTools()); err != nil {
+			errs = append(errs, fmt.Errorf("Claude Code permissions: %w", err))
+		} else if n > 0 {
+			fmt.Printf("Claude Code: %d reading tools allowed without asking (posting still asks)\n", n)
 		}
 	} else if all {
 		fmt.Println("Claude Code: not found on this PC, skipped")

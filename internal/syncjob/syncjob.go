@@ -87,7 +87,8 @@ func Run(ctx context.Context, c *tally.Client, j Job) (Result, error) {
 	if err != nil {
 		return res, err
 	}
-	rec, err := (auth.Store{Dir: label.Dir(j.Root), Box: box}).Valid(co.Name, time.Now())
+	rec, err := auth.CoverFromAnnual(auth.Store{Dir: j.Root, Box: box}, auth.Store{Dir: label.Dir(j.Root), Box: box},
+		co.Name, co.GSTIN, string(j.Source), time.Now())
 	if err != nil {
 		return res, err
 	}

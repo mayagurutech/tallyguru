@@ -63,6 +63,33 @@ type Record struct {
 	AcceptedAt             time.Time
 	NoticeSHA256           string // fingerprint of the notice text the user accepted
 	NoticeLang             string `json:",omitempty"` // language the notice was shown in
+	// Basis: empty for a declaration made for this company; "annual declaration of <date>"
+	// when it comes from the yearly declaration covering every company the user connects.
+	Basis string `json:",omitempty"`
+}
+
+// AllCompanies is the Company of the yearly declaration that covers every company connected
+// in that financial year (stored in the data folder itself, not in a company folder).
+const AllCompanies = "*"
+
+// CoverFromAnnual makes sure company has a record for this financial year: if it has none but
+// the yearly declaration (in annual) is valid, a record based on it is added to the company's
+// store. Returns the company's valid record, or the usual error when neither exists.
+func CoverFromAnnual(annual, company Store, name, gstin, source string, now time.Time) (*Record, error) {
+	if r, err := company.Valid(name, now); err == nil {
+		return r, nil
+	}
+	a, aerr := annual.Valid(AllCompanies, now)
+	if aerr != nil {
+		return company.Valid(name, now)
+	}
+	r := Record{Company: name, GSTIN: gstin, Source: source, Kind: a.Kind, FY: a.FY, AcceptedAt: a.AcceptedAt,
+		NoticeSHA256: a.NoticeSHA256, NoticeLang: a.NoticeLang,
+		Basis: "annual declaration of " + a.AcceptedAt.Format("02-01-2006")}
+	if err := company.Add(r, nil); err != nil {
+		return nil, err
+	}
+	return company.Valid(name, now)
 }
 
 // Sum returns the SHA-256 fingerprint (hex) of b.

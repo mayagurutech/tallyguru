@@ -47,6 +47,24 @@ it if asked. I understand data the AI reads is sent to my AI service provider fo
 AI सहायक से उनका लेखा डेटा देख और प्रोसेस कर सकूँ, और माँगे जाने पर मैं वह अनुमति दिखाऊँगा/दिखाऊँगी।
 मैं समझता/समझती हूँ कि AI जो डेटा पढ़ता है वह प्रोसेसिंग के लिए मेरे AI सेवा प्रदाता को भेजा जाता है।`,
 	},
+	"self_declaration_all": {
+		EN: `For this financial year, I confirm that I hold written authorisation from every business
+whose books I connect with this tool, to access and process its accounting data with an AI
+assistant for the purpose agreed with them, and that I will produce it if asked. I understand
+data the AI reads is sent to my AI service provider for processing.`,
+		HI: `इस वित्त वर्ष के लिए, मैं पुष्टि करता/करती हूँ कि जिस भी व्यवसाय के बहीखाते मैं इस टूल से जोड़ूँगा/जोड़ूँगी,
+उसकी लिखित अनुमति मेरे पास है कि मैं उनके साथ तय उद्देश्य के लिए AI सहायक से उनका लेखा डेटा देख और प्रोसेस
+कर सकूँ, और माँगे जाने पर मैं वह अनुमति दिखाऊँगा/दिखाऊँगी। मैं समझता/समझती हूँ कि AI जो डेटा पढ़ता है वह
+प्रोसेसिंग के लिए मेरे AI सेवा प्रदाता को भेजा जाता है।`,
+	},
+	"owner_declaration_all": {
+		EN: `For this financial year, I declare that every business whose books I connect with this tool
+is my own business (I am its owner, or a partner/director authorised by it), and that I understand
+data the AI reads is sent to my AI service provider for processing.`,
+		HI: `इस वित्त वर्ष के लिए, मैं घोषणा करता/करती हूँ कि जिस भी व्यवसाय के बहीखाते मैं इस टूल से जोड़ूँगा/जोड़ूँगी,
+वह मेरा अपना व्यवसाय है (मैं उसका/उसकी मालिक हूँ, या उसके द्वारा अधिकृत साझेदार/निदेशक हूँ), और मैं
+समझता/समझती हूँ कि AI जो डेटा पढ़ता है वह प्रोसेसिंग के लिए मेरे AI सेवा प्रदाता को भेजा जाता है।`,
+	},
 	"self_heading":    {EN: "Your declaration:", HI: "आपकी घोषणा:"},
 	"pick_company":    {EN: "Companies open in TallyPrime:", HI: "TallyPrime में खुली कंपनियाँ:"},
 	"pick_number":     {EN: "Choose a company (number): ", HI: "कंपनी चुनें (संख्या): "},

@@ -13,7 +13,7 @@ says what to do.
 | Trial balance does not match | The sync checks itself first: it traces the differing ledgers month by month in Tally and reads those months again. If it still differs, the company card names the month, the difference and the likely voucher, and an Excel file "TB difference" lists them all. Answers stay blocked until it ties. Click **Full re-check** after correcting anything in Tally. Each differing ledger shows its group: a closing-stock ledger should be under Stock-in-Hand (renamed is fine). |
 | Checking many clients at once | Open every client in TallyPrime and run `tallyguru doctor -tb`. It checks each authorised company and prints counts only (no names or amounts), safe to share when asking for help. |
 | Sync is slow | The first sync reads every month once; later syncs read only changes. For very large companies run it from a Command Prompt with `-weekly`. Tally stays usable meanwhile. |
-| "Writing to ... refused" | Only TEST MCP is writable by default. For a real client, type **ALLOW WRITES** in its **Drafts and writes** and restart the AI app. |
+| "Posting to ... refused" | Only TEST MCP is writable by default. For a real client, type **ALLOW WRITES** when the AI app asks (or in its **Drafts and writes** in the control panel), then ask again. |
 | "Windows protected your PC" when installing | The program isn't code-signed yet. Click **More info > Run anyway**. |
 | A posted entry looks wrong | Ask the AI to cancel or delete it (needs the Alter/cancel/delete switch and the typed word), or correct it in Tally. The original is in the write log. |
 

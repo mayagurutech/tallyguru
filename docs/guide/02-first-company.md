@@ -22,12 +22,16 @@ authorisation record for this financial year:
 | Owner's declaration | These are your own business's books |
 | Self-certification + letter or email | As above, and you want a copy of the signed letter or email kept (encrypted) on this PC |
 
-The AI app shows the notice and the declarations in a form addressed to you; the AI cannot
-fill it. Choose whose books they are, type **I AGREE**, and accept. (In the control panel: type
-**I AGREE** and click **Record and continue**. AI apps that cannot show forms open the panel
-for this step.) A letter or email copy can be added only in the control panel.
-The tool cannot check that a letter is genuine; the legal responsibility stays with you. You are
-asked again each financial year.
+In the AI app this is asked **once per financial year**, not per company: the first time you
+connect a company in a year, the AI app shows the notice and a yearly declaration in a form
+addressed to you (the AI cannot fill it). It covers every business whose books you connect that
+year: you confirm you hold each one's written authorisation (or that they are your own
+businesses). Type **I AGREE** and accept. Each company then gets its own record, marked
+"annual declaration of <date>", when it first syncs.
+
+For a declaration for one company only, or to keep a copy of a letter or email, use **Add a
+company** in the control panel. AI apps that cannot show forms open the panel for this step.
+The tool cannot check that a letter is genuine; the legal responsibility stays with you.
 
 ## 3. Sync
 

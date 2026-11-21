@@ -1,7 +1,7 @@
 # 6. Entering vouchers safely
 
 Writing to Tally is off unless your role allows it (Accountant) and **Read-only** is off in
-**Features**. For a real client it also needs **Allow writes** for that company (see below).
+**Features**. For a real client, the first posting asks you to allow it (see below).
 
 ## How every entry works
 
@@ -36,9 +36,12 @@ Sales, purchase and note vouchers can be cancelled or deleted here; alter those 
 
 ## Writing to a real client
 
-TEST MCP (a dummy company) is always writable. For any other company, open **Drafts and writes**
-on its card and type **ALLOW WRITES**. Before you post anything:
+TEST MCP (a dummy company) is always writable. For any other company, drafts, previews, bank
+statement matching and rules work at once; only posting to Tally needs your permission. The
+first time you confirm a posting for that company, the AI app shows you a form: type
+**ALLOW WRITES**. The AI cannot fill it in. It is remembered for that company.
+(AI apps that cannot show forms open the control panel: type it in the company's
+**Drafts and writes**.)
 
-- **Take a Tally backup** (Alt+Y) first.
-- Restart the AI app after switching it on.
-- Switch it off again when you are done.
+- **Take a Tally backup** (Alt+Y) before posting.
+- Switch it off again in **Drafts and writes** when you are done, if you want.
