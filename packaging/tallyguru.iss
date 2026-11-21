@@ -62,11 +62,12 @@ Name: "connectai"; Description: "Connect Claude and keep it connected (Claude Co
 ; Setup is finished from the AI app's chat: connect the AI app here, then the user asks it to connect a company.
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" connect"; StatusMsg: "Connecting your AI app..."; Flags: runhidden waituntilterminated; Tasks: connectai
 Filename: "{app}\tallyguru-agent.exe"; Parameters: "-data ""{#DataDir}"""; Flags: nowait runhidden; Tasks: connectai
-
-[UninstallRun]
-Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM tallyguru-agent.exe"; Flags: runhidden; RunOnceId: "StopAgent"
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Description: "Also open the control panel (settings; optional)"; Flags: postinstall nowait skipifsilent unchecked
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Flags: nowait; Check: WizardSilent
+
+[UninstallRun]
+; Stop the helper before its file is removed.
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM tallyguru-agent.exe"; Flags: runhidden; RunOnceId: "StopAgent"
 
 [Messages]
 FinishedLabel=Tally MCP by Guru is installed.%n%nNext:%n1. In TallyPrime, open the company you want.%n2. Quit Claude fully (tray icon > Quit) and open it again.%n3. Ask Claude: Connect my Tally company.%n%nThe control panel (Start menu) is only needed for settings.
