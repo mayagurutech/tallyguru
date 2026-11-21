@@ -34,6 +34,7 @@ UninstallDisplayName=Tally MCP by Guru
 
 [Files]
 Source: "..\dist\tallyguru.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\tallyguru-agent.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD_PARTY_LICENSES"; DestDir: "{app}"; Flags: ignoreversion
@@ -44,6 +45,9 @@ Name: "{#DataDir}"
 [Registry]
 ; One data folder for everything (see the note at the top).
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "TALLYGURU_DATA"; ValueData: "{#DataDir}"; Flags: uninsdeletevalue
+; Keeps the AI apps connected: a small helper with no window starts at sign-in and every two
+; minutes re-adds the tool if Claude lost it (Claude installed later, or old settings written back).
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "TallyGuruAgent"; ValueData: """{app}\tallyguru-agent.exe"" -data ""{#DataDir}"""; Flags: uninsdeletevalue; Tasks: connectai
 
 [Icons]
 Name: "{group}\Tally MCP control panel"; Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Comment: "Set up and manage Tally MCP by Guru"
@@ -52,11 +56,15 @@ Name: "{group}\Uninstall Tally MCP by Guru"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\Tally MCP control panel"; Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Comment: "Set up and manage Tally MCP by Guru"
 
 [Tasks]
-Name: "connectai"; Description: "Connect my AI app (Claude Desktop and Claude Code, if found). Their old settings files are kept as copies."
+Name: "connectai"; Description: "Connect Claude and keep it connected (Claude Code, and Claude Desktop if found; a small helper with no window checks every 2 minutes). Old settings files are kept as copies."
 
 [Run]
 ; Setup is finished from the AI app's chat: connect the AI app here, then the user asks it to connect a company.
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" connect"; StatusMsg: "Connecting your AI app..."; Flags: runhidden waituntilterminated; Tasks: connectai
+Filename: "{app}\tallyguru-agent.exe"; Parameters: "-data ""{#DataDir}"""; Flags: nowait runhidden; Tasks: connectai
+
+[UninstallRun]
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM tallyguru-agent.exe"; Flags: runhidden; RunOnceId: "StopAgent"
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Description: "Also open the control panel (settings; optional)"; Flags: postinstall nowait skipifsilent unchecked
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Flags: nowait; Check: WizardSilent
 
@@ -64,6 +72,37 @@ Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Flags: n
 FinishedLabel=Tally MCP by Guru is installed.%n%nNext:%n1. In TallyPrime, open the company you want.%n2. Quit Claude fully (tray icon > Quit) and open it again.%n3. Ask Claude: Connect my Tally company.%n%nThe control panel (Start menu) is only needed for settings.
 
 [Code]
+// Claude rewrites its settings files when it closes, which would undo "Connect my AI app" if it
+// is running during setup (seen on a new PC): ask the user to quit it first.
+function ClaudeRunning(): Boolean;
+var
+  Locator, Svc, Found: Variant;
+begin
+  Result := False;
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Svc := Locator.ConnectServer('.', 'root\CIMV2');
+    Found := Svc.ExecQuery('SELECT Name FROM Win32_Process WHERE Name = ''claude.exe'' OR Name = ''Claude.exe''');
+    Result := Found.Count > 0;
+  except
+    Result := False;
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = wpReady) and WizardIsTaskSelected('connectai') then
+    while ClaudeRunning() do
+      if MsgBox('Please quit Claude first: right-click the Claude icon near the clock and choose Quit, and close Claude Code.' + #13#10#13#10 +
+        'Setup adds this tool to Claude''s settings; Claude would undo it if it stays open.' + #13#10#13#10 +
+        'Click Retry when Claude is closed.', mbInformation, MB_RETRYCANCEL) = IDCANCEL then
+      begin
+        Result := False;
+        Exit;
+      end;
+end;
+
 // Uninstall removes the program. Client data (books, authorisation records, rules) is deleted
 // only if the user says so; it can also be deleted per client from the control panel.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

@@ -209,6 +209,7 @@ func otherChecks(root string) []Check {
 		os.Remove(f.Name())
 		out = append(out, Check{Name: "Data folder", OK: true, Detail: root})
 	}
+	out = append(out, claudeCodeCheck())
 	// Claude Desktop entry.
 	exe, _ := os.Executable()
 	b, err := os.ReadFile(ClaudeConfig())
@@ -240,4 +241,30 @@ func otherChecks(root string) []Check {
 		}
 	}
 	return append(out, Check{Name: "Claude Desktop", Warn: true, Detail: "installed, but this tool is not added yet", Fix: "Connect it from the AI app section."})
+}
+
+// claudeCodeCheck tells whether Claude Code has this tool at user scope (~/.claude.json).
+func claudeCodeCheck() Check {
+	const fix = "Quit Claude fully, run: tallyguru connect, then open Claude again."
+	b, err := os.ReadFile(ClaudeCodeConfig())
+	if err != nil {
+		return Check{Name: "Claude Code", Warn: true, Detail: "not connected (no Claude Code settings yet)", Fix: fix}
+	}
+	var cfg struct {
+		MCP map[string]struct {
+			Command string `json:"command"`
+		} `json:"mcpServers"`
+	}
+	if json.Unmarshal(b, &cfg) != nil {
+		return Check{Name: "Claude Code", Detail: "its settings file is not valid JSON", Fix: "Fix " + ClaudeCodeConfig()}
+	}
+	for name, s := range cfg.MCP {
+		if strings.EqualFold(filepath.Base(s.Command), "tallyguru.exe") {
+			if _, err := os.Stat(s.Command); err != nil {
+				return Check{Name: "Claude Code", Detail: fmt.Sprintf("entry %q points to a missing file: %s", name, s.Command), Fix: fix}
+			}
+			return Check{Name: "Claude Code", OK: true, Detail: fmt.Sprintf("connected as %q (restart Claude after changes)", name)}
+		}
+	}
+	return Check{Name: "Claude Code", Warn: true, Detail: "this tool is not added yet", Fix: fix}
 }

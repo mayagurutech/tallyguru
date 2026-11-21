@@ -64,6 +64,7 @@ func main() {
 	root := flag.String("data", store.DefaultRoot(), "local data folder")
 	toDesktop := flag.Bool("desktop", false, "connect: Claude Desktop")
 	toCode := flag.Bool("code", false, "connect: Claude Code")
+	quiet := flag.Bool("quiet", false, "connect: print nothing (used by the background agent)")
 	here := flag.Bool("here", false, "ui: run the panel in this window instead of in the background")
 	flag.Usage = usage
 	if len(os.Args) > 1 && os.Args[1] != "authorise" && os.Args[1] != "authorize" {
@@ -95,6 +96,9 @@ func main() {
 	case "serve":
 		err = runServe(*root)
 	case "connect":
+		if *quiet {
+			os.Stdout, _ = os.Open(os.DevNull)
+		}
 		err = runConnect(*root, *toDesktop, *toCode)
 	case "setup":
 		err = runSetup(*root)

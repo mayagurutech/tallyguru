@@ -9,7 +9,9 @@ import (
 )
 
 // runConnect adds this server to the AI apps (the installer runs it after installing).
-// Neither flag: every app found on this PC. An app not found is skipped, not an error.
+// Neither flag: Claude Code always (its settings are prepared even before its first start, so
+// it finds the tool when it is installed or opened later; seen on a new PC) and Claude Desktop
+// if found.
 func runConnect(root string, desktop, code bool) error {
 	all := !desktop && !code
 	var errs []error
@@ -24,9 +26,12 @@ func runConnect(root string, desktop, code bool) error {
 	} else if all {
 		fmt.Println("Claude Desktop: not found on this PC, skipped")
 	}
-	if code || all && statuspage.ClaudeCodeInstalled() {
+	if code || all {
+		fresh := !statuspage.ClaudeCodeInstalled() // checked before the files below are written
 		if changed, err := statuspage.ConnectClaudeCode(root); err != nil {
 			errs = append(errs, fmt.Errorf("Claude Code: %w", err))
+		} else if changed && fresh {
+			fmt.Println("Claude Code: ready; it will find the tool when it is first opened (" + statuspage.ClaudeCodeConfig() + ")")
 		} else if changed {
 			fmt.Println("Claude Code: connected (" + statuspage.ClaudeCodeConfig() + ")")
 		} else {
@@ -38,8 +43,6 @@ func runConnect(root string, desktop, code bool) error {
 		} else if n > 0 {
 			fmt.Printf("Claude Code: %d reading tools allowed without asking (posting still asks)\n", n)
 		}
-	} else if all {
-		fmt.Println("Claude Code: not found on this PC, skipped")
 	}
 	if len(errs) == 0 {
 		fmt.Println("Quit the AI app fully and open it again, then ask: \"Connect my Tally company\".")

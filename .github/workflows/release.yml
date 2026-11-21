@@ -29,6 +29,7 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $ver = if ($tag -like 'v*') { $tag.Substring(1) } else { "0.0.0-dev" }
           go build -trimpath -ldflags "-s -w -X main.version=$ver" -o dist/tallyguru.exe ./cmd/tallyguru
+          go build -trimpath -ldflags "-s -w -H=windowsgui" -o dist/tallyguru-agent.exe ./cmd/tallyguru-agent
 
       - name: Install Inno Setup 7.1.1
         shell: pwsh

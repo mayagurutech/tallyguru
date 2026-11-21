@@ -7,7 +7,7 @@ says what to do.
 |---|---|
 | "Nothing is listening" on localhost:9000 | Open TallyPrime. **F1 > Settings > Connectivity**: TallyPrime acts as Server (or Both), port 9000. Restart TallyPrime. |
 | "No company is open" | Open the company in TallyPrime (Alt+F3). |
-| The AI app shows no Tally tools | Run `tallyguru connect` (or **AI app** in the control panel), then fully quit the AI app (tray icon > Quit) and reopen it. After changing Features, restart it again. |
+| The AI app shows no Tally tools | Wait 2 minutes, then quit Claude fully (tray icon > Quit) and open it again: the helper re-adds the tool by itself. If it is still missing: in a Command Prompt run `"%LOCALAPPDATA%\Programs\TallyGuru\tallyguru.exe" connect`, then open Claude again. `tallyguru doctor` shows a **Claude Code** line: it should say connected. After changing Features, restart Claude again. |
 | "No authorisation" | Ask the AI app to connect the company again and type I AGREE (each financial year), or use **Add a company** in the control panel. |
 | The AI app opened the control panel instead of asking for I AGREE | That AI app cannot show forms. Record the authorisation in **Add a company**, then ask again. |
 | Trial balance does not match | The sync checks itself first: it traces the differing ledgers month by month in Tally and reads those months again. If it still differs, the company card names the month, the difference and the likely voucher, and an Excel file "TB difference" lists them all. Answers stay blocked until it ties. Click **Full re-check** after correcting anything in Tally. Each differing ledger shows its group: a closing-stock ledger should be under Stock-in-Hand (renamed is fine). |

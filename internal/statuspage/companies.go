@@ -177,7 +177,7 @@ func PlanClaude(root string) (ClaudePlan, error) {
 // ConnectClaude writes the planned change, keeping a copy of the old file.
 func ConnectClaude(root string) (ClaudePlan, error) {
 	p, err := PlanClaude(root)
-	if err != nil {
+	if err != nil || p.Already {
 		return p, err
 	}
 	if err := os.MkdirAll(filepath.Dir(p.Path), 0o700); err != nil {

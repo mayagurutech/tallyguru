@@ -5,12 +5,17 @@ Desktop or Claude Code). The tool works on a 4 GB PC.
 
 ## Install (three steps)
 
-1. Run `TallyMCP-Setup-0.1.0.exe`. It does not ask for admin rights.
+1. **Quit Claude first** (right-click the Claude icon near the clock > Quit; close Claude Code).
+   Setup asks you to, because Claude would undo the connection if it stays open.
+   Run `TallyMCP-Setup.exe`. It does not ask for admin rights.
    - Windows may say "Windows protected your PC" (the program is not code-signed yet). Click
      **More info**, then **Run anyway**.
-   - Read the licence and the "please read" page. Leave **Connect my AI app** ticked: setup adds
-     the tool to Claude Desktop and Claude Code if they are on this PC, and keeps their old
-     settings files as copies.
+   - Read the licence and the "please read" page. Leave **Connect Claude and keep it connected**
+     ticked: setup adds the tool to Claude Code (even if you install or open Claude Code later)
+     and to Claude Desktop if it is on this PC, and keeps their old settings files as copies.
+     A small helper with no window (`tallyguru-agent.exe`, about 6 MB of memory) starts at
+     Windows sign-in and checks every 2 minutes that Claude still has the tool; it reads and
+     sends nothing else. If Claude ever loses the tool, just restart Claude a few minutes later.
 2. **Fully quit** your AI app and open it again (Claude Desktop: tray icon > Quit). AI apps load
    tools only when they start.
 3. Open the company in TallyPrime, then ask the AI app: **Connect my Tally company**.
