@@ -20,8 +20,8 @@ Desktop or Claude Code). The tool works on a 4 GB PC.
    tools only when they start.
 3. Open the company in TallyPrime, then ask the AI app: **Connect my Tally company**.
 
-The AI app checks TallyPrime, shows you the data-protection notice and asks you to type
-**I AGREE** once for the financial year (see [2. Your first company](02-first-company.md)), then
+The AI app checks TallyPrime. Once per financial year a Windows box with the data-protection
+notice appears on top of Claude: read it and click **Yes** (see [2. Your first company](02-first-company.md)), then
 starts the first sync. You can ask questions as soon as it finishes. From then on, open any
 company in TallyPrime and just ask: Claude sees which company is open and connects a new one
 by itself. In Claude Code, setup also lets the reading tools run without asking each time;
@@ -43,6 +43,19 @@ with the command `tallyguru.exe -data "%USERPROFILE%\TallyGuru" serve` in your a
 ```
 "%LOCALAPPDATA%\Programs\TallyGuru\tallyguru.exe" connect
 ```
+
+## Everything is on, and it updates itself
+
+Every feature is switched on for everyone: reports, audit checks, mapping, voucher entry,
+changes, bulk import and bank statements. Posting to a real company still asks you once per
+company (a Windows box: click Yes), and every entry is shown to you before it is posted. To
+switch features off, use **Features** in the control panel.
+
+The tool keeps itself up to date. The small helper checks GitHub for a newer release 10 minutes
+after you sign in and then every 6 hours. It installs it quietly, but only when Claude is not
+using the tool (if Claude is open, it tries again later). After an update, the next time you
+open Claude it uses the new version. Only public release files are downloaded; nothing about you
+or your books is sent.
 
 ## The control panel (optional)
 

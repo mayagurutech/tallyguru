@@ -38,10 +38,9 @@ Sales, purchase and note vouchers can be cancelled or deleted here; alter those 
 
 TEST MCP (a dummy company) is always writable. For any other company, drafts, previews, bank
 statement matching and rules work at once; only posting to Tally needs your permission. The
-first time you confirm a posting for that company, the AI app shows you a form: type
-**ALLOW WRITES**. The AI cannot fill it in. It is remembered for that company.
-(AI apps that cannot show forms open the control panel: type it in the company's
-**Drafts and writes**.)
+first time you confirm a posting for that company, a Windows box asks "Allow posting to ...?":
+click **Yes**. Only you can answer it; the AI cannot. It is remembered for that company.
+(You can also switch it on or off in the control panel: the company's **Drafts and writes**.)
 
 - **Take a Tally backup** (Alt+Y) before posting.
 - Switch it off again in **Drafts and writes** when you are done, if you want.

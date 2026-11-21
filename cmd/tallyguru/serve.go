@@ -35,6 +35,9 @@ func buildServer(root string) (*mcp.Server, error) {
 		Instructions: i18n.T(i18n.Of(cfg.Language), "ai_instructions")}
 	startupEnv = env
 	env.Ask = s.Elicit // the authorisation form goes to the user, not the AI
+	if confirmDialog != nil {
+		env.Confirm = confirmDialog // Windows: a Yes/No box at this PC (Claude Code's desktop app closed forms unseen)
+	}
 	env.OpenPanel = func() error { return startDetached("-data", root, "-here", "ui") }
 	if !cfg.NoMask {
 		s.Filter = mask.Text // PAN, Aadhaar, mobile, bank a/c masked in every answer

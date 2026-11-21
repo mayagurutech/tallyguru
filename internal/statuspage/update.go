@@ -196,48 +196,57 @@ func addUpdateRoutes(mux *http.ServeMux, version string, post func(*http.Request
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 		defer cancel()
-		rel, err := latest(ctx)
+		tag, path, err := FetchUpdate(ctx, version)
 		if err != nil {
-			fail("Could not check: %v", err)
+			fail("%v", err)
 			return
 		}
-		if !Newer(rel.Tag, version) {
+		if path == "" {
 			fmt.Fprintf(w, "You already have the latest version (%s).", version)
 			return
 		}
-		su, iu := rel.asset(sumsName), rel.asset(setupName)
-		if su == "" || iu == "" {
-			fail("Release %s has no installer. Download it from %s", rel.Tag, rel.URL)
-			return
-		}
-		sums, err := get(ctx, su, 64<<10)
-		if err != nil {
-			fail("Could not download the checksums: %v", err)
-			return
-		}
-		want := sumFor(sums, setupName)
-		setup, err := get(ctx, iu, 100<<20)
-		if err != nil {
-			fail("Could not download the installer: %v", err)
-			return
-		}
-		got := sha256.Sum256(setup)
-		if want == "" || hex.EncodeToString(got[:]) != want {
-			fail("The downloaded installer did not match its published checksum, so it was not run. Try again later, or download it from %s", rel.URL)
-			return
-		}
-		dir, err := os.MkdirTemp("", "tallyguru-update-")
-		if err == nil {
-			p := filepath.Join(dir, setupName)
-			if err = os.WriteFile(p, setup, 0o700); err == nil {
-				err = startInstaller(p)
-			}
-		}
-		if err != nil {
+		if err := startInstaller(path); err != nil {
 			http.Error(w, "Could not start the installer: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		rel := release{Tag: tag}
 		fmt.Fprintf(w, "Installing %s. This page will close; the control panel reopens by itself when the update is done. Then fully quit and reopen your AI app.", rel.Tag)
 		go func() { time.Sleep(time.Second); stop() }()
 	})
+}
+
+// FetchUpdate downloads the newest release's installer when it is newer than version and checks
+// it against the published checksum. path is "" when already up to date. Only public release
+// files from this project's GitHub page are read; nothing is sent.
+func FetchUpdate(ctx context.Context, version string) (tag, path string, err error) {
+	rel, err := latest(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("could not check: %w", err)
+	}
+	if !Newer(rel.Tag, version) {
+		return rel.Tag, "", nil
+	}
+	su, iu := rel.asset(sumsName), rel.asset(setupName)
+	if su == "" || iu == "" {
+		return rel.Tag, "", fmt.Errorf("release %s has no installer; download it from %s", rel.Tag, rel.URL)
+	}
+	sums, err := get(ctx, su, 64<<10)
+	if err != nil {
+		return rel.Tag, "", fmt.Errorf("could not download the checksums: %w", err)
+	}
+	want := sumFor(sums, setupName)
+	setup, err := get(ctx, iu, 100<<20)
+	if err != nil {
+		return rel.Tag, "", fmt.Errorf("could not download the installer: %w", err)
+	}
+	got := sha256.Sum256(setup)
+	if want == "" || hex.EncodeToString(got[:]) != want {
+		return rel.Tag, "", fmt.Errorf("the downloaded installer did not match its published checksum, so it was not run; download it from %s", rel.URL)
+	}
+	dir, err := os.MkdirTemp("", "tallyguru-update-")
+	if err != nil {
+		return rel.Tag, "", err
+	}
+	path = filepath.Join(dir, setupName)
+	return rel.Tag, path, os.WriteFile(path, setup, 0o700)
 }

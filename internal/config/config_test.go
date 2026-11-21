@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"reflect"
 	"testing"
 )
@@ -44,8 +45,8 @@ func TestReadOnlyHidesWriteModules(t *testing.T) {
 
 func TestSaveLoad(t *testing.T) {
 	root := t.TempDir()
-	if c, _ := Load(root); !c.Modules["core"] || !c.ReadOnly {
-		t.Fatal("default must be core-only, read-only")
+	if c, _ := Load(root); c.Profile != "all" || c.ReadOnly || !c.Enabled("bank") || !c.Enabled("accounting") || !c.Enabled("audit") {
+		t.Fatalf("default must be everything on, writes allowed: %+v", c)
 	}
 	c, _ := FromProfile("auditor")
 	c.Language = "hi"
@@ -53,5 +54,24 @@ func TestSaveLoad(t *testing.T) {
 	got, err := Load(root)
 	if err != nil || got.Profile != "auditor" || got.Language != "hi" || !got.Modules["audit"] {
 		t.Fatalf("round trip: %+v %v", got, err)
+	}
+}
+
+// Files written before 21 Nov 2026 that follow a preset move to everything-on; a file the user
+// adjusted by hand keeps its choices; a choice saved after the change is kept.
+func TestOldConfigMovesToAll(t *testing.T) {
+	root := t.TempDir()
+	os.WriteFile(Path(root), []byte(`{"profile":"auditor","modules":{"core":true,"audit":true},"read_only":true,"top_n":10}`), 0o600)
+	if c, _ := Load(root); c.Profile != "all" || c.ReadOnly || !c.Enabled("bank") {
+		t.Fatalf("old preset must move to all: %+v", c)
+	}
+	os.WriteFile(Path(root), []byte(`{"profile":"auditor*","modules":{"core":true},"read_only":true,"top_n":10}`), 0o600)
+	if c, _ := Load(root); c.Profile != "auditor*" || !c.ReadOnly || c.Modules["audit"] {
+		t.Fatalf("hand-adjusted file must be kept: %+v", c)
+	}
+	c, _ := FromProfile("owner")
+	c.Save(root)
+	if got, _ := Load(root); got.Profile != "owner" || !got.ReadOnly {
+		t.Fatalf("a choice saved after the change must be kept: %+v", got)
 	}
 }

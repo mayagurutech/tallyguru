@@ -43,7 +43,7 @@ func setup(root string, r io.Reader) error {
 	for i, p := range config.ProfileNames {
 		fmt.Printf("  %d. %-10s %s\n", i+1, p, strings.Join(config.Profiles[p], ", "))
 	}
-	def := "2"
+	def := "1"
 	for i, p := range config.ProfileNames {
 		if strings.TrimSuffix(old.Profile, "*") == p {
 			def = strconv.Itoa(i + 1)

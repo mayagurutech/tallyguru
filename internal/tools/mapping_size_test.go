@@ -30,6 +30,8 @@ func TestProfileToolSize(t *testing.T) {
 		{"accountant with changes switched on", [][]byte{mustJSON(Core(e)), mustJSON(Mapping(e)), mustJSON(Reports(e)), mustJSON(Accounting(e)), mustJSON(Masters(e)), mustJSON(Changes(e))}},
 		{"accountant with bulk and bank switched on", [][]byte{mustJSON(Core(e)), mustJSON(Mapping(e)), mustJSON(Reports(e)), mustJSON(Accounting(e)), mustJSON(Masters(e)), mustJSON(Bulk(e)), mustJSON(Bank(e)), mustJSON(Rules(e))}},
 		{"bookkeeper: core + accounting + bulk + bank (no mapping, reports, masters)", [][]byte{mustJSON(Core(e)), mustJSON(Accounting(e)), mustJSON(Bulk(e)), mustJSON(Bank(e)), mustJSON(Rules(e))}},
+		// Author 21 Nov 2026: everything on for everyone (the default); over 1,500 accepted.
+		{"all, the default: everything switched on", [][]byte{mustJSON(Core(e)), mustJSON(Mapping(e)), mustJSON(Reports(e)), mustJSON(Audit(e)), mustJSON(Accounting(e)), mustJSON(Masters(e)), mustJSON(Changes(e)), mustJSON(Bulk(e)), mustJSON(Bank(e)), mustJSON(Rules(e))}},
 	} {
 		n := 0
 		for _, b := range p.mods {

@@ -33,6 +33,8 @@ Commands:
   ui [-here]           open the control panel in your browser (setup, connection, companies,
                        mapping, features); this PC only. Runs in the background and stops
                        when unused; -here keeps it in this window
+  update [-quiet]      install the newest release from GitHub if there is one (the background
+                       helper runs this; it waits while Claude or the panel uses the tool)
   connect [-desktop] [-code]
                        add this server to Claude Desktop and/or Claude Code (both if
                        neither is given); old settings files are kept as copies
@@ -95,6 +97,11 @@ func main() {
 		}
 	case "serve":
 		err = runServe(*root)
+	case "update":
+		if *quiet {
+			os.Stdout, _ = os.Open(os.DevNull)
+		}
+		err = runUpdate()
 	case "connect":
 		if *quiet {
 			os.Stdout, _ = os.Open(os.DevNull)

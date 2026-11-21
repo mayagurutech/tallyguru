@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // Module is one optional feature group. Only enabled modules register MCP tools.
@@ -34,8 +35,10 @@ var Modules = []Module{
 // CurrentPhase is the latest phase built; later modules can be chosen but load nothing yet.
 const CurrentPhase = 6
 
-// Profiles are presets of modules; the user can adjust afterwards.
+// Profiles are presets of modules; the user can adjust afterwards. "all" (every built module,
+// writes allowed) is the default for everyone: author's decision, 21 Nov 2026.
 var Profiles = map[string][]string{
+	"all":        allBuilt(),
 	"owner":      {"core", "reports"},
 	"accountant": {"core", "mapping", "reports", "gst", "tds", "accounting", "masters"}, // changes, bulk, bank: off by default (token budget)
 	"auditor":    {"core", "mapping", "reports", "audit", "gst", "tds"},
@@ -43,7 +46,22 @@ var Profiles = map[string][]string{
 }
 
 // ProfileNames in display order.
-var ProfileNames = []string{"owner", "accountant", "auditor", "banker"}
+var ProfileNames = []string{"all", "owner", "accountant", "auditor", "banker"}
+
+// allBuilt lists every module built so far.
+func allBuilt() []string {
+	var out []string
+	for _, m := range Modules {
+		if m.Phase <= CurrentPhase && m.ID != "banker" {
+			out = append(out, m.ID)
+		}
+	}
+	return out
+}
+
+// ConfigVersion 2: everything on for everyone (21 Nov 2026). Older files that still follow a
+// preset are moved to "all" when read; files the user adjusted by hand ("*") are kept.
+const ConfigVersion = 2
 
 // Config is saved as config.json in the data folder.
 type Config struct {
@@ -66,12 +84,19 @@ type Config struct {
 	Agreed string `json:"agreed,omitempty"`
 	// LiveWrites are companies (other than TEST MCP) the user allowed writes to, in the panel.
 	LiveWrites []string `json:"live_writes,omitempty"`
+	// Version of the defaults this file follows (see ConfigVersion).
+	Version int `json:"config_version,omitempty"`
 }
 
-// Default is used before setup has run: core only, read-only.
+// Default is used before setup has run: every built module, writes allowed (posting to a real
+// company still needs the user's Yes for that company, and every entry a preview and confirm).
 func Default() Config {
-	return Config{Language: "en", Profile: "custom", Modules: map[string]bool{"core": true},
-		ReadOnly: true, Host: "localhost", Port: 9000, TopN: 10}
+	c := Config{Language: "en", Profile: "all", Modules: map[string]bool{},
+		Host: "localhost", Port: 9000, TopN: 10, Version: ConfigVersion}
+	for _, m := range allBuilt() {
+		c.Modules[m] = true
+	}
+	return c
 }
 
 // FromProfile builds a config with a profile's modules switched on.
@@ -85,7 +110,7 @@ func FromProfile(p string) (Config, error) {
 	for _, m := range ms {
 		c.Modules[m] = true
 	}
-	c.ReadOnly = p != "accountant" // owner, auditor and banker are read-only by default
+	c.ReadOnly = p != "accountant" && p != "all" // owner, auditor and banker are read-only by default
 	return c, nil
 }
 
@@ -145,8 +170,16 @@ func Load(root string) (Config, error) {
 		return Config{}, err
 	}
 	c := Default()
+	c.Modules, c.Version = nil, 0 // the file's own choices, not merged with the defaults
 	if err := json.Unmarshal(b, &c); err != nil {
 		return Config{}, fmt.Errorf("config.json: %w", err)
+	}
+	if c.Version < ConfigVersion && !strings.HasSuffix(c.Profile, "*") {
+		d := Default()
+		c.Profile, c.Modules, c.ReadOnly, c.Version = d.Profile, d.Modules, false, ConfigVersion
+	}
+	if c.Modules == nil {
+		c.Modules = Default().Modules
 	}
 	if c.TopN <= 0 {
 		c.TopN = 10

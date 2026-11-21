@@ -32,6 +32,9 @@ type Env struct {
 	// the app cannot, and OpenPanel (if set) opens the control panel instead.
 	Ask       func(message string, schema json.RawMessage) (mcp.Elicitation, error)
 	OpenPanel func() error
+	// Confirm shows a Yes/No dialog on this PC, straight to the person (Windows); when set it
+	// is used instead of Ask for the yearly authorisation and for allowing posting.
+	Confirm func(title, text string) (bool, error)
 
 	checked   map[string]time.Time // last quick check per company folder
 	openNames []string             // companies open in Tally, cached (openInTally)

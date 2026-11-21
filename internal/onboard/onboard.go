@@ -181,3 +181,25 @@ func RecordAnnual(root string, kind auth.Kind, typed string, now time.Time) erro
 		NoticeLang: string(L), NoticeSHA256: auth.Sum([]byte(t.Notice + "\n" + t.Declaration))}
 	return AnnualStore(root, box).Add(r, nil)
 }
+
+// AnnualAnyText is the yearly declaration shown in the Windows Yes/No dialog: own businesses or
+// businesses that gave written authorisation, in one text.
+func AnnualAnyText(lang string) (notice, declaration, disclaimer string) {
+	L := i18n.Of(lang)
+	return i18n.T(L, "notice"), i18n.T(L, "any_declaration_all"), i18n.T(L, "disclaimer")
+}
+
+// RecordAnnualClicked records the yearly declaration accepted with Yes in the dialog shown at
+// this PC (author's choice, 21 Nov 2026: a click instead of typed words).
+func RecordAnnualClicked(root string, now time.Time) error {
+	cfg, _ := config.Load(root)
+	box, err := crypt.LoadOrCreate(root)
+	if err != nil {
+		return err
+	}
+	n, d, _ := AnnualAnyText(cfg.Language)
+	r := auth.Record{Company: auth.AllCompanies, Kind: auth.Self, FY: auth.FY(now), AcceptedAt: now,
+		NoticeLang: string(i18n.Of(cfg.Language)), NoticeSHA256: auth.Sum([]byte(n + "\n" + d)),
+		Basis: "Yes clicked in the Windows dialog"}
+	return AnnualStore(root, box).Add(r, nil)
+}

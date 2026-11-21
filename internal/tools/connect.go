@@ -128,6 +128,9 @@ func (e *Env) companyConnect(a map[string]any) (string, error) {
 // gets its own record from it at its first sync. Returns a message when the flow stops here.
 func (e *Env) askAuthorisation(ctx context.Context, co tally.Company) (string, error) {
 	L := i18n.Of(e.Cfg.Language)
+	if e.Confirm != nil {
+		return e.confirmAuthorisation(co)
+	}
 	self, owner := onboard.AnnualTexts(e.Cfg.Language, auth.Self), onboard.AnnualTexts(e.Cfg.Language, auth.Owner)
 	var m strings.Builder
 	needAgree := onboard.NeedAgree(e.Cfg)
@@ -257,4 +260,36 @@ func (e *Env) StartupNote() string {
 		}
 	}
 	return "Open in TallyPrime now: " + strings.Join(parts, "; ") + ". Without a company name, use the one open in TallyPrime."
+}
+
+// confirmAuthorisation asks for the yearly declaration in a Yes/No dialog at this PC.
+func (e *Env) confirmAuthorisation(co tally.Company) (string, error) {
+	L := i18n.Of(e.Cfg.Language)
+	notice, decl, disc := onboard.AnnualAnyText(e.Cfg.Language)
+	var m strings.Builder
+	needAgree := onboard.NeedAgree(e.Cfg)
+	if needAgree {
+		m.WriteString(i18n.T(L, "tool_disclaimer") + "\n\n")
+	}
+	fmt.Fprintf(&m, "Financial year %s. Asked once a year; covers %s and every company you connect this year.\n\n%s\n\n%s\n\n%s\n\nClick Yes to accept.",
+		auth.FY(e.Now()), co.Name, notice, decl, disc)
+	yes, err := e.Confirm("Tally MCP by Guru: authorisation for FY "+auth.FY(e.Now()), m.String())
+	if err != nil {
+		return "", fmt.Errorf("could not show the authorisation dialog: %v", err)
+	}
+	if !yes {
+		return "Not authorised (No was clicked), so nothing was read from TallyPrime. Ask again when you are ready.", nil
+	}
+	if err := onboard.RecordAnnualClicked(e.Root, e.Now()); err != nil {
+		return "", err
+	}
+	if needAgree {
+		if err := onboard.Agree(e.Root, e.Now()); err != nil {
+			return "", err
+		}
+		if c, err := config.Load(e.Root); err == nil {
+			e.Cfg.Agreed = c.Agreed
+		}
+	}
+	return "", nil
 }

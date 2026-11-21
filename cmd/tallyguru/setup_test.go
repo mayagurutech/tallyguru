@@ -9,8 +9,8 @@ import (
 
 func TestSetupHindiThenServerInstructions(t *testing.T) {
 	root := t.TempDir()
-	// hi, profile 3 (auditor), no toggles, privacy y, read-only default.
-	if err := setup(root, strings.NewReader("hi\n3\n\ny\n\n")); err != nil {
+	// hi, profile 4 (auditor), no toggles, privacy y, read-only default.
+	if err := setup(root, strings.NewReader("hi\n4\n\ny\n\n")); err != nil {
 		t.Fatal(err)
 	}
 	c, _ := config.Load(root)

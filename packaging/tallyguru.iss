@@ -63,7 +63,7 @@ Name: "connectai"; Description: "Connect Claude and keep it connected (Claude Co
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" connect"; StatusMsg: "Connecting your AI app..."; Flags: runhidden waituntilterminated; Tasks: connectai
 Filename: "{app}\tallyguru-agent.exe"; Parameters: "-data ""{#DataDir}"""; Flags: nowait runhidden; Tasks: connectai
 Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Description: "Also open the control panel (settings; optional)"; Flags: postinstall nowait skipifsilent unchecked
-Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Flags: nowait; Check: WizardSilent
+Filename: "{app}\tallyguru.exe"; Parameters: "-data ""{#DataDir}"" ui"; Flags: nowait; Check: WizardSilent and not AutoUpdate
 
 [UninstallRun]
 ; Stop the helper before its file is removed.
@@ -88,6 +88,12 @@ begin
   except
     Result := False;
   end;
+end;
+
+// Automatic updates by the background helper pass /auto=1: no control panel afterwards.
+function AutoUpdate(): Boolean;
+begin
+  Result := ExpandConstant('{param:auto|0}') = '1';
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
