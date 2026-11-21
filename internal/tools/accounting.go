@@ -11,6 +11,7 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/mcp"
 	"github.com/mayagurutech/tallyguru/internal/store"
 	"github.com/mayagurutech/tallyguru/internal/syncjob"
+	"github.com/mayagurutech/tallyguru/internal/tbcheck"
 	"github.com/mayagurutech/tallyguru/internal/write"
 )
 
@@ -107,6 +108,17 @@ func (e *Env) draftMaster(a map[string]any) (string, error) {
 		return "", err
 	}
 	errs, warns := bk.CheckMaster(&m)
+	if m.Opening != nil && m.Kind == write.KLedger {
+		if strings.EqualFold(m.Name, tbcheck.PLLedger) {
+			warns = append(warns, "Profit & Loss A/c opening must be the accumulated profit from last year's books, never a balancing figure. "+
+				"If the openings do not tally, check closing stock first: carry forward Tally's closing stock value (trial_balance shows it), not the stock ledger's entries.")
+		}
+		sl, _ := db.StockLedgers()
+		if _, stock := sl[m.Name]; stock && db.HasStockItems() {
+			errs = append(errs, fmt.Sprintf("%s is a Stock-in-Hand ledger in a company that keeps inventory: its opening comes from the stock items' opening "+
+				"quantity and value (set them on the items in Tally), not from the ledger. Their total must equal last year's closing stock.", m.Name))
+		}
+	}
 	if len(errs) > 0 {
 		return "Not drafted:\n- " + strings.Join(errs, "\n- "), nil
 	}

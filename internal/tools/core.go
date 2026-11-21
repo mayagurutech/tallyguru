@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -351,7 +352,29 @@ func (e *Env) trialBalance(a map[string]any) (string, error) {
 		fmt.Fprintf(&b, "%s | %d | %s | %s\n", g, n, amt(d), amt(c))
 	}
 	fmt.Fprintf(&b, "Total | | %s | %s\n", amt(dr), amt(cr))
+	b.WriteString(stockNote(db))
 	return b.String(), nil
+}
+
+// stockNote gives Tally's closing stock value of Stock-in-Hand ledgers whose value differs from
+// their entries (closing stock entered per date, or valued from items). The rows above show
+// entries only; the balance sheet and any carry-forward must use Tally's value.
+func stockNote(db *store.DB) string {
+	sl, _ := db.StockLedgers()
+	var parts []string
+	for n, tallyVal := range sl {
+		var ours int64
+		db.QueryRow(`SELECT bal FROM (`+closingsSQL+`) WHERE name = ?`, n).Scan(&ours)
+		if tallyVal != ours {
+			parts = append(parts, fmt.Sprintf("%s %s (entries only: %s)", n, side(tallyVal), side(ours)))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	sort.Strings(parts)
+	return "Closing stock, Tally's value (use this for the balance sheet and carry-forward; never put the difference in Profit & Loss): " +
+		strings.Join(parts, "; ") + "\n"
 }
 
 func (e *Env) ledgerBalance(a map[string]any) (string, error) {
@@ -425,8 +448,19 @@ func (e *Env) ledgerBalance(a map[string]any) (string, error) {
 
 	var b strings.Builder
 	// Default answer is one short block; month-wise and entries only when asked.
-	fmt.Fprintf(&b, "%s (under %s): closing %s\nOpening %s | Dr %s | Cr %s | %d entries",
-		shownName, dash(parent), side(bal), side(opening), amt(dr), amt(cr), n)
+	stockVal, isStock := map[string]int64{}, false
+	if sl, err := db.StockLedgers(); err == nil {
+		stockVal = sl
+		_, isStock = sl[name]
+	}
+	if isStock && stockVal[name] != bal {
+		fmt.Fprintf(&b, "%s (under %s, Stock-in-Hand): closing stock %s (Tally's value: use this for the balance sheet and carry-forward)\nEntries only: closing %s | ",
+			shownName, dash(parent), side(stockVal[name]), side(bal))
+		fmt.Fprintf(&b, "Opening %s | Dr %s | Cr %s | %d entries", side(opening), amt(dr), amt(cr), n)
+	} else {
+		fmt.Fprintf(&b, "%s (under %s): closing %s\nOpening %s | Dr %s | Cr %s | %d entries",
+			shownName, dash(parent), side(bal), side(opening), amt(dr), amt(cr), n)
+	}
 	if n == 1 {
 		s := strings.Replace(b.String(), "| 1 entries", "| 1 entry", 1)
 		b.Reset()

@@ -120,3 +120,30 @@ func (s *DB) ReplaceBills(bs []tally.Bill) error {
 			return []any{b.Party, b.Name, d, int64(b.Closing), b2i(b.Advance)}
 		})
 }
+
+// StockLedgers returns the Stock-in-Hand ledgers (renamed group included) with Tally's closing
+// value: Tally shows closing stock (entered per date, or valued from items), not opening plus
+// entries, so answers and carry-forward must use this value.
+func (s *DB) StockLedgers() (map[string]int64, error) {
+	rows, err := s.Query(`SELECT l.name, l.closing FROM ledgers l
+		WHERE l.parent = 'Stock-in-Hand' OR EXISTS(SELECT 1 FROM group_anc a WHERE a.name = l.parent AND a.ancestor = 'Stock-in-Hand')`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int64{}
+	for rows.Next() {
+		var n string
+		var c int64
+		rows.Scan(&n, &c)
+		out[n] = c
+	}
+	return out, rows.Err()
+}
+
+// HasStockItems reports whether the company keeps inventory (stock items with values).
+func (s *DB) HasStockItems() bool {
+	var n int
+	s.QueryRow(`SELECT COUNT(*) FROM stock_items`).Scan(&n)
+	return n > 0
+}

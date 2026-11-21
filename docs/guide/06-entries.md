@@ -45,3 +45,15 @@ first time you confirm a posting for that company, the AI app shows you a form: 
 
 - **Take a Tally backup** (Alt+Y) before posting.
 - Switch it off again in **Drafts and writes** when you are done, if you want.
+
+## Carrying balances to a new year's company
+
+When last year's closing balances are entered as this year's opening balances:
+
+- **Closing stock** is Tally's closing stock value (shown as "Closing stock, Tally's value" in the
+  trial balance and ledger answers), not the stock ledger's entries.
+- If the new company keeps inventory, opening stock goes on the **stock items** (opening
+  quantity and value), and their total must equal last year's closing stock. The tool refuses
+  an opening on the Stock-in-Hand ledger there.
+- **Profit & Loss A/c** opening is last year's accumulated profit, never a balancing figure. The
+  tool warns on every P&L opening draft. If the openings don't tally, check closing stock first.
