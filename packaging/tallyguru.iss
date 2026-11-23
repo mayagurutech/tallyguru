@@ -103,10 +103,14 @@ begin
   Result := ExpandConstant('{param:auto|0}') = '1';
 end;
 
+// Quiet installs (automatic updates, the panel's Update button) skip this: they cannot show the
+// message, so they stopped whenever Claude was open (usually always, in the tray). They update
+// a tool that is already connected, at the same path, and the helper re-adds it within two
+// minutes if Claude ever drops it.
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
-  if (CurPageID = wpReady) and WizardIsTaskSelected('connectai') then
+  if (CurPageID = wpReady) and WizardIsTaskSelected('connectai') and not WizardSilent() then
     while ClaudeRunning() do
       if MsgBox('Please quit Claude first: right-click the Claude icon near the clock and choose Quit, and close Claude Code.' + #13#10#13#10 +
         'Setup adds this tool to Claude''s settings; Claude would undo it if it stays open.' + #13#10#13#10 +
