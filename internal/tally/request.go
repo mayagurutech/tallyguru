@@ -84,6 +84,9 @@ func VoucherIDsRequest(company string, from, to time.Time) CollectionRequest {
 		Fetch: []string{"GUID", "AlterID", "Date"}, Filters: []string{dateFilter(from, to)}}
 }
 
+// DateFilter is dateFilter, for callers outside this package.
+func DateFilter(from, to time.Time) string { return dateFilter(from, to) }
+
 // dateFilter limits a Voucher collection to [from,to] with date literals. Kept in addition to
 // the SV period (belt and braces): early tests showed requests returning vouchers outside the
 // requested month when the period was sent in the wrong format.
@@ -136,6 +139,13 @@ func ChangedVouchersRequest(company string, sinceAlterID int64, from, to time.Ti
 func BillRequest(company string, from, to time.Time) CollectionRequest {
 	return CollectionRequest{ID: "GuruBills", Type: "Bill", Company: company, From: from, To: to,
 		Fetch: []string{"Name", "Parent", "BillDate", "ClosingBalance", "IsAdvance"}}
+}
+
+// LedgerOpeningsRequest gives every ledger's balance at the end of [from,to] (ClosingBalance):
+// the openings when only vouchers from to+1 are synced.
+func LedgerOpeningsRequest(company string, from, to time.Time) CollectionRequest {
+	return CollectionRequest{ID: "GuruLedgerOpen", Type: "Ledger", Company: company, From: from, To: to,
+		Fetch: []string{"Name", "GUID", "Parent", "OpeningBalance", "ClosingBalance"}}
 }
 
 // LedgerBalancesRequest gives the named ledgers' closing balances for [from,to]: used by the

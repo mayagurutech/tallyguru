@@ -19,21 +19,29 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/tally"
 )
 
-// bgSync is the one background sync started by company_connect (first sync of a company can
-// take minutes; the chat must not wait for it).
+// bgSync is the one sync this server runs, always in the background. The server answers the
+// AI app one call at a time, so a sync in the foreground (a first sync of a company with years
+// of history takes many minutes) would make that call and every call queued behind it time out.
 type bgSync struct {
 	mu      sync.Mutex
 	running bool
 	company string
 	last    string // latest progress line
 	result  string // summary when done
+	res     syncjob.Result
+	err     error
 	started time.Time
+	done    chan struct{} // closed when the current sync ends
 }
 
 var bg bgSync
 
 // runSync is syncjob.Run (swapped in tests).
 var runSync = syncjob.Run
+
+// syncWait is how long a tool call waits for a sync before answering that it runs on in the
+// background (small or unchanged books finish within it).
+var syncWait = 20 * time.Second
 
 func (b *bgSync) view(company string) (running bool, text string) {
 	b.mu.Lock()
@@ -49,26 +57,49 @@ func (b *bgSync) view(company string) (running bool, text string) {
 
 func (b *bgSync) busy() bool { b.mu.Lock(); defer b.mu.Unlock(); return b.running }
 
-func (e *Env) startBackgroundSync(company string) bool {
+// wait waits up to d for the current sync to end; true if it has ended.
+func (b *bgSync) wait(d time.Duration) bool {
+	b.mu.Lock()
+	ch := b.done
+	b.mu.Unlock()
+	if ch == nil {
+		return true
+	}
+	select {
+	case <-ch:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+
+// startSync starts a sync of a live company in the background; false if one is running.
+// from is syncjob.Job.From ("" keeps the company's setting).
+func (e *Env) startSync(company string, full bool, from string) bool {
 	bg.mu.Lock()
 	if bg.running {
 		bg.mu.Unlock()
 		return false
 	}
-	bg.running, bg.company, bg.last, bg.result, bg.started = true, company, "starting", "", time.Now()
+	done := make(chan struct{})
+	bg.running, bg.company, bg.last, bg.result, bg.started, bg.done = true, company, "starting", "", time.Now(), done
+	bg.res, bg.err = syncjob.Result{}, nil
 	bg.mu.Unlock()
 	c, root := e.Tally, e.Root
 	go func() {
+		defer close(done)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
 		defer cancel()
-		res, err := runSync(ctx, c, syncjob.Job{Root: root, Company: company, Source: store.Live,
+		res, err := runSync(ctx, c, syncjob.Job{Root: root, Company: company, Source: store.Live, Full: full, From: from,
 			Progress: func(s string) { bg.mu.Lock(); bg.last = strings.TrimSpace(s); bg.mu.Unlock() }})
 		bg.mu.Lock()
 		defer bg.mu.Unlock()
-		bg.running = false
+		bg.running, bg.res, bg.err = false, res, err
 		switch {
 		case err != nil && res.Mode == "":
 			bg.result = fmt.Sprintf("Sync of %s stopped: %v", company, err)
+		case err != nil:
+			bg.result = fmt.Sprintf("Sync of %s finished in %s.\n%s\n%v", company, time.Since(bg.started).Round(time.Second), res, err)
 		default:
 			bg.result = fmt.Sprintf("Sync of %s finished in %s.\n%s", company, time.Since(bg.started).Round(time.Second), res)
 		}
@@ -118,9 +149,14 @@ func (e *Env) companyConnect(a map[string]any) (string, error) {
 	if running, text := bg.view(""); running {
 		return text + "\nAsk again when it finishes.", nil
 	}
-	e.startBackgroundSync(co.Name)
+	from := str(a, "from")
+	if _, err := syncjob.ParseFrom(from); err != nil {
+		return "", err
+	}
+	e.startSync(co.Name, false, from)
 	return fmt.Sprintf("%s is connected. Sync started in the background: month by month, TallyPrime stays usable. "+
-		"A large company can take a few minutes the first time. Use sync_status to see progress.", co.Name), nil
+		"A large company can take a few minutes the first time (many years of books: from can limit it to recent years). "+
+		"Use sync_status to see progress.", co.Name), nil
 }
 
 // askAuthorisation records the yearly DPDP declaration (covers every company connected this

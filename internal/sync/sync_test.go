@@ -42,6 +42,18 @@ func (f *fakeTally) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.reqs = append(f.reqs, "ledgers")
 		out.WriteString(`<LEDGER NAME="Cash"><GUID>L1</GUID><PARENT>Cash-in-Hand</PARENT><CLOSINGBALANCE>0</CLOSINGBALANCE></LEDGER>`)
 		out.WriteString(`<LEDGER NAME="Sales"><GUID>L2</GUID><PARENT>Sales Accounts</PARENT></LEDGER>`)
+	case strings.Contains(body, "GuruLedgerOpen"): // balances to the period end
+		f.reqs = append(f.reqs, "openings "+to)
+		var sum int64
+		for _, v := range f.vs {
+			if v.date >= from && v.date <= to {
+				var r, p int64
+				fmt.Sscanf(v.amt, "%d.%d", &r, &p)
+				sum += r*100 + p
+			}
+		}
+		fmt.Fprintf(&out, `<LEDGER NAME="Cash"><CLOSINGBALANCE>-%d.%02d</CLOSINGBALANCE></LEDGER>`, sum/100, sum%100)
+		fmt.Fprintf(&out, `<LEDGER NAME="Sales"><CLOSINGBALANCE>%d.%02d</CLOSINGBALANCE></LEDGER>`, sum/100, sum%100)
 	case strings.Contains(body, "GuruVchIDs"), strings.Contains(body, "GuruVouchers"):
 		full := strings.Contains(body, "GuruVouchers")
 		f.reqs = append(f.reqs, map[bool]string{true: "full", false: "ids"}[full]+" "+from)
@@ -130,6 +142,51 @@ func TestIncrementalSync(t *testing.T) {
 	db.QueryRow(`SELECT COUNT(*) FROM vlines WHERE voucher_guid='C'`).Scan(&cnt)
 	if cnt != 0 {
 		t.Fatal("lines of deleted voucher left behind")
+	}
+}
+
+// Only recent years synced: earlier vouchers are left out (or dropped) and their effect is in
+// the ledger openings, so opening + entries still gives Tally's closing.
+func TestVouchersFrom(t *testing.T) {
+	ft := &fakeTally{vs: []fv{
+		{"A", "20260405", 10, "100.00"},
+		{"B", "20260410", 11, "200.00"},
+		{"C", "20260502", 12, "300.00"},
+	}}
+	srv := httptest.NewServer(ft)
+	defer srv.Close()
+	c := tally.NewClient("x", 0)
+	c.URL, c.Pause = srv.URL, 0
+	db, err := store.Open(t.TempDir(), store.Label{Company: "TEST MCP", Source: store.Live})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	e := &Engine{C: c, DB: db}
+	o := Options{From: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), To: time.Date(2026, 5, 31, 0, 0, 0, 0, time.UTC)}
+	if _, err := e.Run(context.Background(), o); err != nil { // whole history first
+		t.Fatal(err)
+	}
+	db.SetMeta("sync_from", "2026-05-01")
+	ft.reqs = nil
+	st, err := e.Run(context.Background(), o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reqs := strings.Join(ft.reqs, ",")
+	if strings.Contains(reqs, "20260401") || !strings.Contains(reqs, "openings 20260430") || st.Chunks != 1 {
+		t.Fatalf("want openings to 30 Apr and May only: %s %v", reqs, st)
+	}
+	var n int
+	var cash, sales int64
+	db.QueryRow(`SELECT COUNT(*) FROM vouchers`).Scan(&n)
+	db.QueryRow(`SELECT opening FROM ledgers WHERE name='Cash'`).Scan(&cash)
+	db.QueryRow(`SELECT opening FROM ledgers WHERE name='Sales'`).Scan(&sales)
+	if n != 1 || cash != -30000 || sales != 30000 {
+		t.Fatalf("vouchers=%d cash=%d sales=%d (want 1, -30000, 30000)", n, cash, sales)
+	}
+	if got := VouchersFrom(db, Options{From: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}); got.Format(time.DateOnly) != "2026-06-01" {
+		t.Fatalf("never before books-from: %v", got)
 	}
 }
 

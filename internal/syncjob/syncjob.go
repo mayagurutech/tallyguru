@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	gosync "sync"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/mayagurutech/tallyguru/internal/crypt"
 	"github.com/mayagurutech/tallyguru/internal/store"
 	"github.com/mayagurutech/tallyguru/internal/sync"
+	"github.com/mayagurutech/tallyguru/internal/synclock"
 	"github.com/mayagurutech/tallyguru/internal/tally"
 	"github.com/mayagurutech/tallyguru/internal/tbcheck"
 	"github.com/mayagurutech/tallyguru/internal/tbheal"
@@ -21,11 +24,14 @@ import (
 
 // Job describes one sync request.
 type Job struct {
-	Root     string
-	Company  string
-	Source   store.Source
-	Weekly   bool
-	Full     bool // force the full monthly sweep
+	Root    string
+	Company string
+	Source  store.Source
+	Weekly  bool
+	Full    bool // force the full monthly sweep
+	// From changes which vouchers are kept: "" keeps the company's setting, "all" the whole
+	// history, or a date (2025-04-01) / financial year (2025-26). See ParseFrom.
+	From     string
 	Progress func(string)
 }
 
@@ -69,6 +75,14 @@ func Run(ctx context.Context, c *tally.Client, j Job) (Result, error) {
 	if j.Source != store.Live && j.Source != store.Backup {
 		return res, fmt.Errorf("source must be live or backup")
 	}
+	// Also one at a time across processes (every AI app runs its own copy of the server).
+	lk, err := synclock.Acquire(ctx, j.Root, func() {
+		say("Waiting: another LedgerGuru window is syncing TallyPrime; this sync starts when it finishes.")
+	})
+	if err != nil {
+		return res, fmt.Errorf("waiting for another sync to finish: %w", err)
+	}
+	defer lk.Unlock()
 	cs, err := Companies(ctx, c)
 	if err != nil {
 		return res, err
@@ -107,6 +121,19 @@ func Run(ctx context.Context, c *tally.Client, j Job) (Result, error) {
 	say(fmt.Sprintf("Syncing %q (%s) into %s", co.Name, j.Source, db.Path))
 	e := &sync.Engine{C: c, DB: db}
 	o := sync.Options{Weekly: j.Weekly, Progress: func(s string) { say("  " + s) }}
+	if j.From != "" {
+		want, err := ParseFrom(j.From)
+		if err != nil {
+			return res, err
+		}
+		if old := mustMeta(db, "sync_from"); old != want {
+			db.SetMeta("sync_from", want)
+			j.Full = true // other months to read (or drop): full sweep
+		}
+	}
+	if sf := mustMeta(db, "sync_from"); sf != "" && sf > co.BooksFrom.Format(time.DateOnly) {
+		say("Vouchers from " + sf + " (earlier years are summed into the ledger openings)")
+	}
 	if j.Full {
 		db.SetMeta("alt_vch_id", "0") // forget counters: forces the full sweep
 	}
@@ -120,8 +147,9 @@ func Run(ctx context.Context, c *tally.Client, j Job) (Result, error) {
 	if !res.TB.OK() {
 		// Self-heal: trace the differing ledgers month by month in Tally, read those months again.
 		from, _ := time.Parse(time.DateOnly, mustMeta(db, "books_from"))
+		start := sync.VouchersFrom(db, sync.Options{From: from})
 		cfg, _ := config.Load(j.Root)
-		h, herr := tbheal.Run(ctx, e, res.TB, from, sync.FYEnd(time.Now()), cfg.ExportBase(), say)
+		h, herr := tbheal.Run(ctx, e, res.TB, from, start, sync.FYEnd(time.Now()), cfg.ExportBase(), say)
 		res.Heal = h
 		if herr != nil {
 			say("Self-check stopped: " + herr.Error())
@@ -143,4 +171,30 @@ func Run(ctx context.Context, c *tally.Client, j Job) (Result, error) {
 func mustMeta(db *store.DB, k string) string {
 	v, _ := db.Meta(k)
 	return v
+}
+
+// ParseFrom reads a "from" choice: "all" (whole history, stored as ""), a date 2025-04-01 or
+// 01-04-2025, or a financial year 2025-26 / 2025-2026 / FY 25-26 (its 1 April).
+func ParseFrom(s string) (string, error) {
+	s = strings.TrimSpace(strings.ToLower(s))
+	s = strings.TrimSpace(strings.TrimPrefix(s, "fy"))
+	if s == "all" || s == "" {
+		return "", nil
+	}
+	for _, f := range []string{time.DateOnly, "02-01-2006", "2-1-2006", "02/01/2006"} {
+		if t, err := time.Parse(f, s); err == nil {
+			return t.Format(time.DateOnly), nil
+		}
+	}
+	if a, _, ok := strings.Cut(s, "-"); ok {
+		if y, err := strconv.Atoi(a); err == nil {
+			if y < 100 {
+				y += 2000
+			}
+			if y >= 1990 && y <= 2100 {
+				return fmt.Sprintf("%d-04-01", y), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("from %q: give a date (2025-04-01), a financial year (2025-26) or all", s)
 }

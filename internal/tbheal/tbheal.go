@@ -44,15 +44,16 @@ type Result struct {
 	Excel     string  // path of the detail file, if written
 }
 
-// Run heals what it can. from/to is the synced period; exportDir is where the Excel file goes.
-func Run(ctx context.Context, e *sync.Engine, r tbcheck.Result, from, to time.Time, exportDir string, say func(string)) (Result, error) {
+// Run heals what it can. from/to is the synced period (from = books-from); months are traced
+// from start (later than from when only recent years are synced); exportDir is where the Excel file goes.
+func Run(ctx context.Context, e *sync.Engine, r tbcheck.Result, from, start, to time.Time, exportDir string, say func(string)) (Result, error) {
 	res := Result{TB: r}
 	names := ledgers(r)
 	if len(names) == 0 {
 		return res, nil
 	}
 	say(fmt.Sprintf("Tracing %d differing ledgers month by month in Tally…", len(names)))
-	months, err := compare(ctx, e, names, from, to)
+	months, err := compare(ctx, e, names, from, start, to)
 	if err != nil {
 		return res, err
 	}
@@ -73,7 +74,7 @@ func Run(ctx context.Context, e *sync.Engine, r tbcheck.Result, from, to time.Ti
 		if names = ledgers(res.TB); len(names) == 0 {
 			return res, nil
 		}
-		if months, err = compare(ctx, e, names, from, to); err != nil {
+		if months, err = compare(ctx, e, names, from, start, to); err != nil {
 			return res, err
 		}
 	}
@@ -100,12 +101,16 @@ func ledgers(r tbcheck.Result) []string {
 }
 
 // compare asks Tally each ledger's closing at every month end and compares month movements.
-func compare(ctx context.Context, e *sync.Engine, names []string, from, to time.Time) ([]Month, error) {
+func compare(ctx context.Context, e *sync.Engine, names []string, from, start, to time.Time) ([]Month, error) {
+	if start.Before(from) {
+		start = from
+	}
+	partial := start.After(from)
 	company := e.DB.Label.Company
 	prevT, prevL := map[string]int64{}, map[string]int64{}
 	first := true
 	var out []Month
-	for _, p := range tally.Chunks(from, to, false) {
+	for _, p := range tally.Chunks(start, to, false) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -130,7 +135,7 @@ func compare(ctx context.Context, e *sync.Engine, names []string, from, to time.
 			local := open + upto
 			if first {
 				prevL[n] = open
-				if _, ok := prevT[n]; !ok {
+				if _, ok := prevT[n]; !ok || partial { // partial: open is Tally's balance before start
 					prevT[n] = open
 				}
 			}

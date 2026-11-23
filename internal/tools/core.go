@@ -3,7 +3,6 @@
 package tools
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -64,9 +63,18 @@ func (e *Env) refresh(l store.Label) {
 		return
 	}
 	e.checked[k] = time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	res, err := syncjob.Run(ctx, e.Tally, syncjob.Job{Root: e.Root, Company: l.Company, Source: l.Source})
+	// In the background, waiting briefly: a long sync must never hold up the answer.
+	if !e.startSync(l.Company, false, "") {
+		e.note = "Note: a sync is running in the background; figures are as of the last finished sync."
+		return
+	}
+	if !bg.wait(syncWait) {
+		e.note = "Note: Tally has many changes; a sync is running in the background (sync_status shows progress). Figures are as of the last finished sync."
+		return
+	}
+	bg.mu.Lock()
+	res, err := bg.res, bg.err
+	bg.mu.Unlock()
 	switch {
 	case err != nil && res.Mode == "":
 		e.note = fmt.Sprintf("Note: could not check Tally (%v); figures are as of the last sync.", err)
@@ -109,24 +117,30 @@ func (e *Env) syncNow(a map[string]any) (string, error) {
 		return e.companyConnect(a)
 	}
 	if _, err := (auth.Store{Dir: l.Dir(e.Root), Box: e.Box}).Valid(l.Company, e.Now()); err != nil {
-		return e.companyConnect(map[string]any{"company": l.Company})
+		return e.companyConnect(map[string]any{"company": l.Company, "from": str(a, "from")})
 	}
 	if running, text := bg.view(""); running {
 		return text + "\nIt is already syncing; ask sync_status later.", nil
 	}
 	full, _ := a["full"].(bool)
-	t0 := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-	res, err := syncjob.Run(ctx, e.Tally, syncjob.Job{Root: e.Root, Company: l.Company, Source: l.Source, Full: full})
+	from := str(a, "from")
+	if _, err := syncjob.ParseFrom(from); err != nil {
+		return "", err
+	}
 	if e.checked == nil {
 		e.checked = map[string]time.Time{}
 	}
 	e.checked[l.Dir(e.Root)] = time.Now()
-	if err != nil && res.Mode == "" {
-		return "", err
+	if !e.startSync(l.Company, full, from) {
+		_, text := bg.view("")
+		return text + "\nIt is already syncing; ask sync_status later.", nil
 	}
-	return fmt.Sprintf("%s\n(%s)", res, time.Since(t0).Round(time.Millisecond)), nil
+	if bg.wait(syncWait) {
+		_, text := bg.view(l.Company)
+		return text, nil
+	}
+	return fmt.Sprintf("Sync of %s is running in the background, month by month; TallyPrime stays usable. "+
+		"A first sync of many years can take a while. Use sync_status to see progress.", l.Company), nil
 }
 
 const companyProp = `"company":{"type":"string","description":"Company name (optional if only one)"}`
@@ -146,8 +160,8 @@ func Core(e *Env) []mcp.Tool {
 
 func (e *Env) core() []mcp.Tool {
 	return []mcp.Tool{
-		{Name: "sync_now", Description: "Sync from Tally; connects new companies (no name: list them).",
-			InputSchema: schema(`"full":{"type":"boolean","description":"Full re-check of all months"}`), Handler: e.syncNow},
+		{Name: "sync_now", Description: "Sync or connect a company. from: date/FY (2025-26)/all; full: recheck.",
+			InputSchema: schema(`"full":{"type":"boolean"}`, `"from":{"type":"string"}`), Handler: e.syncNow},
 		{Name: "company_list", Description: "List synced companies with source, last sync and check status.",
 			InputSchema: json.RawMessage(`{"type":"object","properties":{}}`), Handler: e.companyList},
 		{Name: "sync_status", Description: "Sync and trial-balance check status for a company.",
@@ -284,6 +298,9 @@ func (e *Env) syncStatus(a map[string]any) (string, error) {
 	db.QueryRow(`SELECT COUNT(*) FROM ledgers`).Scan(&nl)
 	last, _ := db.Meta("last_sync")
 	tb, _ := db.Meta("tb_status")
+	if sf, _ := db.Meta("sync_from"); sf != "" {
+		from += " (synced from " + sf + "; earlier years are in the openings)"
+	}
 	rec, _ := (auth.Store{Dir: db.Label.Dir(e.Root), Box: e.Box}).Valid(db.Label.Company, e.Now())
 	s := fmt.Sprintf("%s (%s)\nLast sync: %s\nVouchers: %d (%s to %s), ledgers: %d\nTrial balance vs Tally: %s\nAuthorisation: %s FY %s",
 		db.Label.Company, db.Label.Source, when(last), n, dash(from), dash(to), nl, dash(tb), rec.Kind, rec.FY)

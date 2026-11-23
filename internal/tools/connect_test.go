@@ -151,3 +151,45 @@ func TestStartupNote(t *testing.T) {
 		t.Error("Tally closed: no note")
 	}
 }
+
+// A long sync (first sync of many years) must not hold up sync_now: the server answers one
+// call at a time, so a foreground sync made that call and every later one time out.
+func TestSyncNowLongSyncRunsInBackground(t *testing.T) {
+	e := connectEnv(t, fakeTally(t))
+	e.Ask = func(string, json.RawMessage) (mcp.Elicitation, error) {
+		return mcp.Elicitation{Action: "accept", Content: map[string]any{"kind": "self", "typed": "I AGREE"}}, nil
+	}
+	if s, err := e.syncNow(map[string]any{"company": "TEST MCP"}); err != nil || !strings.Contains(s, "Sync started") {
+		t.Fatalf("connect: %q %v", s, err)
+	}
+	bg.wait(5 * time.Second)
+	l := store.Label{Company: "TEST MCP", Source: store.Live}
+	st, _ := store.Open(e.Root, l)
+	st.Close()
+	if _, err := auth.CoverFromAnnual(auth.Store{Dir: e.Root, Box: e.Box}, auth.Store{Dir: l.Dir(e.Root), Box: e.Box},
+		l.Company, "", string(l.Source), e.Now()); err != nil {
+		t.Fatal(err)
+	}
+
+	release := make(chan struct{})
+	runSync = func(context.Context, *tally.Client, syncjob.Job) (syncjob.Result, error) {
+		<-release
+		return syncjob.Result{Mode: "full"}, nil
+	}
+	old := syncWait
+	syncWait = 100 * time.Millisecond
+	defer func() { syncWait = old }()
+	t0 := time.Now()
+	s, err := e.syncNow(map[string]any{"company": "TEST MCP"})
+	if err != nil || !strings.Contains(s, "running in the background") || time.Since(t0) > 2*time.Second {
+		t.Fatalf("sync_now must answer quickly: %q %v after %s", s, err, time.Since(t0))
+	}
+	if s, _ := e.syncStatus(map[string]any{"company": "TEST MCP"}); !strings.Contains(s, "running for") {
+		t.Fatalf("status while running: %q", s)
+	}
+	close(release)
+	bg.wait(5 * time.Second)
+	if _, s := bg.view("TEST MCP"); !strings.Contains(s, "finished") {
+		t.Fatalf("result: %q", s)
+	}
+}

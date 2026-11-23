@@ -62,6 +62,7 @@ func main() {
 	source := flag.String("source", "live", "data source: live or backup")
 	weekly := flag.Bool("weekly", false, "sync in weekly chunks (large companies)")
 	full := flag.Bool("full", false, "force a full month-by-month sync (default: only what changed)")
+	from := flag.String("from", "", "sync vouchers from this date or financial year (2025-26); all = whole history")
 	tbAll := flag.Bool("tb", false, "doctor: also sync and check the trial balance of every open, authorised company (counts only)")
 	root := flag.String("data", store.DefaultRoot(), "local data folder")
 	toDesktop := flag.Bool("desktop", false, "connect: Claude Desktop")
@@ -154,7 +155,7 @@ func main() {
 	case "mapping":
 		err = runMapping(*root, flag.Args()[1:], store.Source(*source))
 	case "sync":
-		err = runSync(ctx, c, strings.TrimSpace(flag.Arg(1)), store.Source(*source), *weekly, *full, *root)
+		err = runSync(ctx, c, strings.TrimSpace(flag.Arg(1)), store.Source(*source), *weekly, *full, *from, *root)
 	default:
 		usage()
 		os.Exit(2)
@@ -173,14 +174,14 @@ func companies(ctx context.Context, c *tally.Client) ([]tally.Company, error) {
 	return cs, err
 }
 
-func runSync(ctx context.Context, c *tally.Client, name string, src store.Source, weekly, full bool, root string) error {
+func runSync(ctx context.Context, c *tally.Client, name string, src store.Source, weekly, full bool, from, root string) error {
 	if name == "" {
 		return fmt.Errorf(`give the company name, e.g. sync "TEST MCP"`)
 	}
 	_, idlePeak := metrics.RSS()
 	t0 := time.Now()
 	res, err := syncjob.Run(ctx, c, syncjob.Job{Root: root, Company: name, Source: src, Weekly: weekly,
-		Full: full, Progress: func(s string) { fmt.Println(s) }})
+		Full: full, From: from, Progress: func(s string) { fmt.Println(s) }})
 	if res.Mode != "" {
 		fmt.Printf("%s\n(total %s, RAM before sync %.1f MB)\n", res, time.Since(t0).Round(time.Millisecond), idlePeak)
 	}
@@ -190,7 +191,7 @@ func runSync(ctx context.Context, c *tally.Client, name string, src store.Source
 // flagsFirst lets options follow the command (`sync -full "X"`): Go's flag package stops at
 // the first non-option, so options are moved to the front. Value options keep their value.
 func flagsFirst(args []string) []string {
-	takesValue := map[string]bool{"-host": true, "-port": true, "-source": true, "-data": true,
+	takesValue := map[string]bool{"-host": true, "-port": true, "-source": true, "-data": true, "-from": true, "--from": true,
 		"--host": true, "--port": true, "--source": true, "--data": true}
 	var opts, rest []string
 	for i := 0; i < len(args); i++ {

@@ -125,6 +125,7 @@ type Books struct {
 	P         Period
 	First     string // first month with entries
 	BooksFrom string // "2026-04"
+	SyncFrom  string // "2025-04" when only recent years are synced (earlier ones are in the openings)
 	Last      string // latest month with entries
 	Ledgers   []Ledger
 }
@@ -136,6 +137,11 @@ func Load(db *sql.DB, company string, p Period) (*Books, error) {
 	db.QueryRow(`SELECT value FROM meta WHERE key='books_from'`).Scan(&bf)
 	if len(bf) >= 7 {
 		b.BooksFrom = bf[:7]
+	}
+	sf := ""
+	db.QueryRow(`SELECT value FROM meta WHERE key='sync_from'`).Scan(&sf)
+	if len(sf) >= 7 && sf[:7] > b.BooksFrom {
+		b.SyncFrom = sf[:7]
 	}
 	anc := map[string][]string{}
 	rows, err := db.Query(`SELECT name, ancestor FROM group_anc`)
@@ -233,6 +239,9 @@ func (b *Books) Warnings() []string {
 	open, close, known := b.Stock()
 	if (open != 0 || close != 0) && !known {
 		w = append(w, fmt.Sprintf("Closing stock is known only for the latest month (%s); this period's closing stock is NOT included.", b.Last))
+	}
+	if b.SyncFrom != "" && b.P.From < b.SyncFrom {
+		w = append(w, fmt.Sprintf("Vouchers are synced from %s only; entries before that are NOT in this period's figures (sync_now with from=all reads the whole history).", b.SyncFrom))
 	}
 	if open != 0 && !b.fromStart() {
 		w = append(w, "Opening stock for a period that starts after the books' first month is not known; it is NOT included.")

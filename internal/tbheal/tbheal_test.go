@@ -110,7 +110,7 @@ func setup(t *testing.T, ft *fakeTally) (*sync.Engine, tbcheck.Result) {
 func TestHealRereadsWrongMonth(t *testing.T) {
 	ft := &fakeTally{vs: []fv{{"A1", "20260405", 10000}, {"M1", "20260510", 30000}, {"J1", "20260602", 5000}}}
 	e, r := setup(t, ft)
-	res, err := Run(context.Background(), e, r, d("2026-04-01"), d("2026-06-30"), "", func(string) {})
+	res, err := Run(context.Background(), e, r, d("2026-04-01"), d("2026-04-01"), d("2026-06-30"), "", func(string) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestHealNamesVoucherTallyLeavesOut(t *testing.T) {
 		skip: map[string]bool{"J1": true}}
 	e, r := setup(t, ft)
 	dir := t.TempDir()
-	res, err := Run(context.Background(), e, r, d("2026-04-01"), d("2026-06-30"), dir, func(string) {})
+	res, err := Run(context.Background(), e, r, d("2026-04-01"), d("2026-04-01"), d("2026-06-30"), dir, func(string) {})
 	if err != nil {
 		t.Fatal(err)
 	}

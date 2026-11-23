@@ -19,6 +19,10 @@ type Options struct {
 	From, To time.Time // period; zero From = company's books-from date, zero To = today
 	Weekly   bool      // weekly chunks for large companies
 	Progress func(string)
+	// VouchersFrom: vouchers are kept from this date only (zero: the "sync_from" setting, else
+	// all). Ledger openings are then Tally's balances on the day before, so every closing still
+	// matches Tally. Used for companies with many years of history.
+	VouchersFrom time.Time
 	// Set by Smart: skip the voucher sweep, or fetch only vouchers changed after an AlterID.
 	SkipVouchers bool
 	ChangedSince int64
@@ -76,12 +80,16 @@ func (e *Engine) Smart(ctx context.Context, o Options, co tally.Company) (Stats,
 }
 
 // changed fetches vouchers altered/created after sinceAlterID in one request and upserts them.
-func (e *Engine) changed(ctx context.Context, company string, since int64, from, to time.Time) (int, error) {
+func (e *Engine) changed(ctx context.Context, company string, since int64, from, to time.Time, dated bool) (int, error) {
 	tx, err := e.DB.BeginVouchers()
 	if err != nil {
 		return 0, err
 	}
-	err = e.C.Do(ctx, tally.ChangedVouchersRequest(company, since, from, to).Build(), func(r io.Reader) error {
+	req := tally.ChangedVouchersRequest(company, since, from, to)
+	if dated { // changes to vouchers before the synced period are in the openings, not here
+		req.Filters = append(req.Filters, tally.DateFilter(from, to))
+	}
+	err = e.C.Do(ctx, req.Build(), func(r io.Reader) error {
 		return tally.ParseVouchers(r, func(v tally.Voucher) error {
 			if tx.N >= MaxQuickChanges*2 {
 				return fmt.Errorf("more changed vouchers than expected; use a full sync")
@@ -139,6 +147,7 @@ func (e *Engine) Run(ctx context.Context, o Options) (Stats, error) {
 	if o.To.IsZero() {
 		o.To = FYEnd(time.Now())
 	}
+	vf := VouchersFrom(e.DB, o)
 
 	// 1. Ledgers: always the full list (few fields, small), so deletions are caught.
 	var ls []tally.Ledger
@@ -194,16 +203,23 @@ func (e *Engine) Run(ctx context.Context, o Options) (Stats, error) {
 		return st, err
 	}
 	say("groups: %d, voucher types: %d, stock items: %d, open bills: %d", len(gs), len(vts), len(sis), len(bills))
+	if vf.After(o.From) {
+		st.Requests++
+		if err := e.openingsAt(ctx, company, o.From, vf); err != nil {
+			return st, fmt.Errorf("balances on %s: %w", vf.AddDate(0, 0, -1).Format(time.DateOnly), err)
+		}
+		say("vouchers from %s; ledger openings are Tally's balances on the day before", vf.Format(time.DateOnly))
+	}
 
 	// 2. Vouchers, one chunk at a time (period was fixed above).
-	chunks := tally.Chunks(o.From, o.To, o.Weekly)
+	chunks := tally.Chunks(vf, o.To, o.Weekly)
 	switch {
 	case o.SkipVouchers:
 		chunks = nil
 		say("vouchers unchanged in Tally; skipped")
 	case o.ChangedSince > 0:
 		chunks = nil
-		n, err := e.changed(ctx, company, o.ChangedSince, o.From, o.To)
+		n, err := e.changed(ctx, company, o.ChangedSince, vf, o.To, vf.After(o.From))
 		st.Requests++
 		if err != nil {
 			return st, fmt.Errorf("changed vouchers: %w", err)
@@ -318,6 +334,58 @@ func (e *Engine) chunk(ctx context.Context, company string, p tally.Period) (fet
 	fetched = tx.N
 	err = tx.Commit()
 	return
+}
+
+// VouchersFrom is the first date whose vouchers are kept: o.VouchersFrom, else the company's
+// "sync_from" setting, never before o.From (the books-from date).
+func VouchersFrom(db *store.DB, o Options) time.Time {
+	vf := o.VouchersFrom
+	if vf.IsZero() {
+		v, _ := db.Meta("sync_from")
+		vf, _ = time.Parse(time.DateOnly, v)
+	}
+	if vf.Before(o.From) {
+		return o.From
+	}
+	return vf
+}
+
+// plLedger is Tally's reserved profit & loss ledger (tbcheck.PLLedger).
+const plLedger = "Profit & Loss A/c"
+
+// openingsAt sets every ledger's opening to its Tally balance on the day before vf (one
+// request, the same size as the ledger list) and drops vouchers dated before vf.
+func (e *Engine) openingsAt(ctx context.Context, company string, booksFrom, vf time.Time) error {
+	bal := map[string]int64{}
+	err := e.C.Do(ctx, tally.LedgerOpeningsRequest(company, booksFrom, vf.AddDate(0, 0, -1)).Build(), func(r io.Reader) error {
+		return tally.ParseLedgers(r, func(l tally.Ledger) error { bal[l.Name] = int64(l.Closing); return nil })
+	})
+	if err != nil {
+		return err
+	}
+	tx, err := e.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Stock-in-Hand ledgers keep their master opening: Tally reports their balance as the stock
+	// valuation, not as entries. Profit & Loss A/c: Tally's balance includes the profit the
+	// income and expense ledgers already carry, so its opening is what makes the books total
+	// zero (exact, since every other opening is Tally's own figure).
+	for n, b := range bal {
+		if _, err := tx.Exec(`UPDATE ledgers SET opening = ? WHERE name = ? AND name <> ? AND parent <> 'Stock-in-Hand'
+			AND parent NOT IN (SELECT name FROM group_anc WHERE ancestor = 'Stock-in-Hand')`, b, n, plLedger); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(`UPDATE ledgers SET opening = -(SELECT COALESCE(SUM(opening), 0) FROM ledgers WHERE name <> ?)
+		WHERE name = ?`, plLedger, plLedger); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM vouchers WHERE date < ?`, vf.Format(time.DateOnly)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SetBooksFrom records the company's books-from date (from the company list).
